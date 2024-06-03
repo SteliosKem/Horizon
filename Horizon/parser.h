@@ -18,6 +18,8 @@ enum NodeType {
 	STATEMENT,
 	FUNCTION_STM,
 	RETURN_STM,
+	UNARY_EXPR,
+	CONSTANT_EXPR
 };
 
 class Node {
@@ -38,11 +40,23 @@ public:
 	Expression() {
 		type = EXPRESSION;
 	}
-	int value;
 };
 
 class Constant : public Expression {
+public:
+	Constant(int value) : value(value) {
+		type = CONSTANT_EXPR;
+	}
+	int value = 0;
+};
 
+class UnaryExpression : public Expression {
+public:
+	UnaryExpression(TokenType operator_type, std::shared_ptr<Expression> expression) : operator_type(operator_type), expression(expression) {
+		type = UNARY_EXPR;
+	}
+	TokenType operator_type;
+	std::shared_ptr<Expression> expression;
 };
 
 class Function : public Statement {

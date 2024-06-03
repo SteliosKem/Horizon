@@ -7,21 +7,20 @@ using std::shared_ptr, std::make_shared, std::dynamic_pointer_cast;
 shared_ptr<AST> Parser::parse() {
 	next();
 	out = make_shared<AST>();
-	while (current_token.type != TOKEN_EOF) {
+	while (current_token.type != TOKEN_EOF) {						// Parse all statements in file
 		out->statements.push_back(statement());
 	}
 	return out;
 }
 
 shared_ptr<Statement> Parser::statement() {
-	
-	if (current_token.type == TOKEN_KEYWORD) {
+	if (current_token.type == TOKEN_KEYWORD) {						// Handle statement depending on keyword
 		if (current_token.value == "int")
 			return function();
 		else if (current_token.value == "return")
 			return return_statement();
 	}
-	else {
+	else {															// Else it is an expression statement
 		make_error("Expected statement");
 	}
 
@@ -38,7 +37,7 @@ void Parser::make_error(std::string message) {
 
 shared_ptr<Function> Parser::function() {
 	shared_ptr<Function> new_function = std::make_shared<Function>();
-	if (current_token.value == "int")
+	if (current_token.value == "int")								// Get function type
 		new_function->return_type = INTEGER;
 
 	next();
@@ -47,7 +46,7 @@ shared_ptr<Function> Parser::function() {
 	if (!match(TOKEN_ID)) {
 		make_error("Expected function identifier");
 	}
-	new_function->name = tok.value;
+	new_function->name = tok.value;									// Get function name
 	if (!match(TOKEN_L_PAR)) {
 		make_error("Expected '('");
 	}
@@ -57,7 +56,7 @@ shared_ptr<Function> Parser::function() {
 	if (!match(TOKEN_L_BRACE)) {
 		make_error("Expected '{'");
 	}
-	new_function->statement = statement();
+	new_function->statement = statement();							// Make function body
 	if (!match(TOKEN_R_BRACE)) {
 		make_error("Expected '}'");
 	}
@@ -68,22 +67,26 @@ shared_ptr<Function> Parser::function() {
 shared_ptr<Return> Parser::return_statement() {
 	next();
 	shared_ptr<Return> return_stmt = make_shared<Return>();
-	return_stmt->expression = expression();
+	return_stmt->expression = expression();							// Make expression inside return
+	if (!match(TOKEN_SEMICOLON)) {
+		make_error("Expected ';'");
+	}
 	return return_stmt;
 }
 
 shared_ptr<Expression> Parser::expression() {
 	shared_ptr<Expression> expr = make_shared<Expression>();
 	Token tok = current_token;
-	if (!match(TOKEN_INT)) {
-		make_error("Expected integer");
-		return expr;
+	if (match(TOKEN_INT)) {											// If token is a value make constant
+		expr = make_shared<Constant>(stoi(tok.value));
+		std::cout << tok.value;
+	}
+	else if (match(TOKEN_TILDE) || match(TOKEN_BANG) || match(TOKEN_MINUS)) {	// If token is a unary operator make unary expression
+		TokenType op = tok.type;
+		shared_ptr<Expression> new_expr = expression();
+		expr = make_shared<UnaryExpression>(op, new_expr);
 	}
 	
-	expr->value = stoi(tok.value);
-	if (!match(TOKEN_SEMICOLON)) {
-		make_error("Expected ';'");
-	}
 	return expr;
 }
 
@@ -147,5 +150,16 @@ void Parser::print_node(shared_ptr<Statement>& node) {
 }
 
 void Parser::print_expression(shared_ptr<Expression>& expression) {
-	std::cout << expression->value;
+	switch (expression->type)
+	{
+	case CONSTANT_EXPR:
+		std::cout << dynamic_pointer_cast<Constant>(expression)->value;
+		break;
+	case UNARY_EXPR:
+		std::cout << dynamic_pointer_cast<UnaryExpression>(expression)->operator_type << " ";
+		print_expression(dynamic_pointer_cast<UnaryExpression>(expression)->expression);
+		break;
+	default:
+		break;
+	}
 }

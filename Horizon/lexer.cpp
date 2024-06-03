@@ -52,6 +52,7 @@ Token Lexer::lex() {
     case ',': return (Token(TOKEN_COMMA, "", line, old_index, index));
     case '.': return (Token(TOKEN_DOT, "", line, old_index, index));
     case '^': return (Token(TOKEN_CAP, "", line, old_index, index));
+    case '~': return (Token(TOKEN_TILDE, "", line, old_index, index));
     case '-': return (Token(
         match('=') ? TOKEN_MINUS_EQUAL : TOKEN_MINUS, "", line, old_index, index));
     case '+': return (Token(

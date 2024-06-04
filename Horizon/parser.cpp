@@ -38,7 +38,7 @@ void Parser::make_error(std::string message) {
 shared_ptr<Function> Parser::function() {
 	shared_ptr<Function> new_function = std::make_shared<Function>();
 	if (current_token.value == "int")								// Get function type
-		new_function->return_type = INTEGER;
+		new_function->return_type = TYPE_INTEGER;
 
 	next();
 	Token tok = current_token;
@@ -75,19 +75,15 @@ shared_ptr<Return> Parser::return_statement() {
 }
 
 shared_ptr<Expression> Parser::expression() {
-	shared_ptr<Expression> expr = make_shared<Expression>();
+	shared_ptr<Expression> left = parse_term();
 	Token tok = current_token;
-	if (match(TOKEN_INT)) {											// If token is a value make constant
-		expr = make_shared<Constant>(stoi(tok.value));
-		std::cout << tok.value;
-	}
-	else if (match(TOKEN_TILDE) || match(TOKEN_BANG) || match(TOKEN_MINUS)) {	// If token is a unary operator make unary expression
+	while (match(TOKEN_PLUS) || match(TOKEN_MINUS)) {
 		TokenType op = tok.type;
-		shared_ptr<Expression> new_expr = expression();
-		expr = make_shared<UnaryExpression>(op, new_expr);
+		shared_ptr<Expression> right = parse_term();
+		left = make_shared<BinaryExpression>(left, op, right);
 	}
 	
-	return expr;
+	return left;
 }
 
 void Parser::next() {
@@ -159,7 +155,47 @@ void Parser::print_expression(shared_ptr<Expression>& expression) {
 		std::cout << dynamic_pointer_cast<UnaryExpression>(expression)->operator_type << " ";
 		print_expression(dynamic_pointer_cast<UnaryExpression>(expression)->expression);
 		break;
+	case BINARY_EXPR:
+		std::cout << "(";
+		print_expression(dynamic_pointer_cast<BinaryExpression>(expression)->expression_a);
+		std::cout << " " << dynamic_pointer_cast<BinaryExpression>(expression)->operator_type << " ";
+		print_expression(dynamic_pointer_cast<BinaryExpression>(expression)->expression_b);
+		std::cout << ")";
+		break;
 	default:
 		break;
 	}
+}
+
+std::shared_ptr<Expression> Parser::parse_factor() {
+	shared_ptr<Expression> expr;
+	Token tok = current_token;
+	if (match(TOKEN_INT)) {											// If token is a value make constant
+		expr = make_shared<Constant>(stoi(tok.value));
+	}
+	else if (match(TOKEN_TILDE) || match(TOKEN_BANG) || match(TOKEN_MINUS)) {	// If token is a unary operator make unary expression
+		TokenType op = tok.type;
+		shared_ptr<Expression> new_expr = expression();
+		expr = make_shared<UnaryExpression>(op, new_expr);
+	}
+	else if (match(TOKEN_L_PAR)) {
+		expr = expression();
+		if (!match(TOKEN_R_PAR)) {
+			make_error("Expected ')'");
+		}
+	}
+
+	return expr;
+}
+
+std::shared_ptr<Expression> Parser::parse_term() {
+	shared_ptr<Expression> left = parse_factor();
+	Token tok = current_token;
+	while (match(TOKEN_STAR) || match(TOKEN_SLASH)) {
+		TokenType op = tok.type;
+		shared_ptr<Expression> right = parse_factor();
+		left = make_shared<BinaryExpression>(left, op, right);
+	}
+
+	return left;
 }

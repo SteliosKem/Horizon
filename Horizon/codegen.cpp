@@ -12,14 +12,14 @@ void CodeGenerator::generate_asm() {
 }
 
 void CodeGenerator::generate_function_decl(const shared_ptr<Function>& function) {		// Handle Function declarations:
-	assembly_out += std::format(".globl _{0}\n_{0}:\n", function->name);				// global (_name)
+	assembly_out += std::format(".globl {0}\n{0}:\n", function->name);					// global (_name)
 	current_indentation += '\t';														// (_name):
 	generate_statement(function->statement);											//		(function statements)
 	// Generates declaration and statements inside the function
 }
 
 void CodeGenerator::generate_return(const shared_ptr<Return>& return_stmt) {			// Emits return
-	generate_expression(return_stmt->expression, "%eax");
+	generate_expression(return_stmt->expression, "%rax");
 	generate_instruction("ret");
 }
 
@@ -41,7 +41,7 @@ void CodeGenerator::generate_expression(const std::shared_ptr<Expression>& expre
 	switch (expression->type)																								// to_where is the register to set a value
 	{
 	case CONSTANT_EXPR:
-		generate_instruction(std::format("movl ${0}, {1}", dynamic_pointer_cast<Constant>(expression)->value, to_where));	// Constants are just passed to a register
+		generate_instruction(std::format("mov ${0}, {1}", dynamic_pointer_cast<Constant>(expression)->value, to_where));	// Constants are just passed to a register
 		break;
 	case UNARY_EXPR:
 	{
@@ -54,13 +54,52 @@ void CodeGenerator::generate_expression(const std::shared_ptr<Expression>& expre
 			break;
 		case TOKEN_BANG:															// In NOT operation 0 becomes true and anything else false
 			generate_expression(unary->expression, to_where);
-			generate_instruction(std::format("cmpl $0, {0}", to_where));
-			generate_instruction(std::format("xor {0}, {0}", to_where));
+			generate_instruction(std::format("cmp $0, {0}", to_where));
+			generate_instruction(std::format("mov $0, {0}", to_where));
 			generate_instruction("sete %al");
 			break;
 		case TOKEN_TILDE:
 			generate_expression(unary->expression, to_where);
-			generate_instruction(std::format("xor {0}, {0}", to_where));			// Use XOR to get bitwise complement
+			generate_instruction(std::format("not {0}", to_where));			// Use not to get bitwise complement
+			break;
+		default:
+			break;
+		}
+		break;
+	}
+	case BINARY_EXPR:
+	{
+		shared_ptr<BinaryExpression> binary = dynamic_pointer_cast<BinaryExpression>(expression);
+		switch (binary->operator_type)
+		{
+		case TOKEN_PLUS:
+			generate_expression(binary->expression_a, to_where);					// Handle left expression
+			generate_instruction("push " + to_where);								// Push the result to the stack in order to save it	
+			generate_expression(binary->expression_b, to_where);					// Handle right expression
+			generate_instruction("pop %rcx");										// Pop and get the top of the stack to retrieve the result from left expression
+			generate_instruction("add %rcx, " + to_where);							// Add the two expressions
+			break;
+		case TOKEN_STAR:															
+			generate_expression(binary->expression_a, to_where);					// Handle left expression
+			generate_instruction("push " + to_where);								// Push the result to the stack in order to save it	
+			generate_expression(binary->expression_b, to_where);					// Handle right expression
+			generate_instruction("pop %rcx");										// Pop and get the top of the stack to retrieve the result from left expression
+			generate_instruction("imul %rcx, " + to_where);							// Multiply the two expressions
+			break;
+		case TOKEN_MINUS:
+			generate_expression(binary->expression_b, to_where);					// Handle left expression
+			generate_instruction("push " + to_where);								// Push the result to the stack in order to save it	
+			generate_expression(binary->expression_a, to_where);					// Handle right expression
+			generate_instruction("pop %rcx");										// Pop and get the top of the stack to retrieve the result from left expression
+			generate_instruction("sub %rcx, " + to_where);							// Subtract expression_b from expression_a and set the result to %rax
+			break;
+		case TOKEN_SLASH:
+			generate_expression(binary->expression_b, to_where);					// Handle left expression
+			generate_instruction("push " + to_where);								// Push the result to the stack in order to save it	
+			generate_expression(binary->expression_a, to_where);					// Handle right expression
+			generate_instruction("pop %rcx");										// Pop and get the top of the stack to retrieve the result from left expression
+			generate_instruction("cdq");
+			generate_instruction("idivq %rcx");										// Divide the two expressions
 			break;
 		default:
 			break;

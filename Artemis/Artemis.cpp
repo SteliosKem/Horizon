@@ -26,10 +26,12 @@ int main(int argc, char* argv[])
     lexer.analyze();
     if (error_handler.has_error()) {
         error_handler.output_errors();
+        
     }
     else {
         Parser parser(lexer.out, &error_handler);
         std::shared_ptr<AST> ast = parser.parse();
+        
         if (error_handler.has_error()) {
             error_handler.output_errors();
         }
@@ -38,6 +40,17 @@ int main(int argc, char* argv[])
             CodeGenerator code_gen(ast);
             code_gen.generate_asm();
             std::cout << code_gen.assembly_out;
+
+            if (argc > 1) {
+                std::ofstream file(std::string(argv[1]) + ".s");
+
+                file << code_gen.assembly_out;
+                file.close();
+            }
         }
+
+        
     }
+
+    
 }

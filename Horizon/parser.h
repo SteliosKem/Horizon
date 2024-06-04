@@ -5,11 +5,11 @@
 #include "error.h"
 
 enum ValueType {
-	INTEGER,
-	FLOAT,
-	STRING,
-	VOID,
-	BOOL
+	TYPE_INTEGER,
+	TYPE_FLOAT,
+	TYPE_STRING,
+	TYPE_VOID,
+	TYPE_BOOL
 };
 
 enum NodeType {
@@ -19,7 +19,8 @@ enum NodeType {
 	FUNCTION_STM,
 	RETURN_STM,
 	UNARY_EXPR,
-	CONSTANT_EXPR
+	CONSTANT_EXPR,
+	BINARY_EXPR
 };
 
 class Node {
@@ -59,13 +60,24 @@ public:
 	std::shared_ptr<Expression> expression;
 };
 
+class BinaryExpression : public Expression {
+public:
+	BinaryExpression(std::shared_ptr<Expression> expression_a, TokenType operator_type, std::shared_ptr<Expression> expression_b) :
+		expression_a(expression_a), operator_type(operator_type), expression_b(expression_b) {
+		type = BINARY_EXPR;
+	}
+	TokenType operator_type;
+	std::shared_ptr<Expression> expression_a;
+	std::shared_ptr<Expression> expression_b;
+};
+
 class Function : public Statement {
 public:
 	Function() {
 		type = FUNCTION_STM;
 	}
 	std::string name;
-	ValueType return_type;
+	ValueType return_type = TYPE_VOID;
 	std::shared_ptr<Statement> statement;
 };
 
@@ -102,6 +114,10 @@ private:
 	std::shared_ptr<Function> function();									// Function handling
 	std::shared_ptr<Return> return_statement();								// Return statement handling
 	std::shared_ptr<Expression> expression();								// Expression handling
+
+	// EXPRESSIONS
+	std::shared_ptr<Expression> parse_factor();
+	std::shared_ptr<Expression> parse_term();
 
 	bool match(TokenType type);								// Checks if current token type matches the desired one
 

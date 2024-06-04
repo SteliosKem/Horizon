@@ -113,11 +113,17 @@ private:
 	std::shared_ptr<Statement> statement();									// Statement handling
 	std::shared_ptr<Function> function();									// Function handling
 	std::shared_ptr<Return> return_statement();								// Return statement handling
-	std::shared_ptr<Expression> expression();								// Expression handling
+	
 
 	// EXPRESSIONS
-	std::shared_ptr<Expression> parse_factor();
-	std::shared_ptr<Expression> parse_term();
+	std::shared_ptr<Expression> expression();								// Expression handling (Lowest precedence, OR operator)
+	std::shared_ptr<Expression> parse_and();								// Lowest		|
+	std::shared_ptr<Expression> parse_equality();							//				|
+	std::shared_ptr<Expression> parse_relational();							// To			|
+	std::shared_ptr<Expression> parse_arithmetic();							// Highest		|
+	std::shared_ptr<Expression> parse_term();								//			  \	| /
+	std::shared_ptr<Expression> parse_factor();								// Precedence  \_/
+	
 
 	bool match(TokenType type);								// Checks if current token type matches the desired one
 

@@ -75,6 +75,54 @@ shared_ptr<Return> Parser::return_statement() {
 }
 
 shared_ptr<Expression> Parser::expression() {
+	shared_ptr<Expression> left = parse_and();
+	Token tok = current_token;
+	while (match(TOKEN_OR)) {
+		TokenType op = tok.type;
+		shared_ptr<Expression> right = parse_and();
+		left = make_shared<BinaryExpression>(left, op, right);
+	}
+	
+	return left;
+}
+
+std::shared_ptr<Expression> Parser::parse_and() {
+	shared_ptr<Expression> left = parse_equality();
+	Token tok = current_token;
+	while (match(TOKEN_AND)) {
+		TokenType op = tok.type;
+		shared_ptr<Expression> right = parse_equality();
+		left = make_shared<BinaryExpression>(left, op, right);
+	}
+
+	return left;
+}
+
+std::shared_ptr<Expression> Parser::parse_equality() {
+	shared_ptr<Expression> left = parse_relational();
+	Token tok = current_token;
+	while (match(TOKEN_EQUAL_EQUAL) || match(TOKEN_BANG_EQUAL)) {
+		TokenType op = tok.type;
+		shared_ptr<Expression> right = parse_relational();
+		left = make_shared<BinaryExpression>(left, op, right);
+	}
+
+	return left;
+}
+
+std::shared_ptr<Expression> Parser::parse_relational() {
+	shared_ptr<Expression> left = parse_arithmetic();
+	Token tok = current_token;
+	while (match(TOKEN_LESS) || match(TOKEN_GREATER) || match(TOKEN_LESS_EQUAL) || match(TOKEN_GREATER_EQUAL)) {
+		TokenType op = tok.type;
+		shared_ptr<Expression> right = parse_arithmetic();
+		left = make_shared<BinaryExpression>(left, op, right);
+	}
+
+	return left;
+}
+
+std::shared_ptr<Expression> Parser::parse_arithmetic() {
 	shared_ptr<Expression> left = parse_term();
 	Token tok = current_token;
 	while (match(TOKEN_PLUS) || match(TOKEN_MINUS)) {
@@ -82,7 +130,7 @@ shared_ptr<Expression> Parser::expression() {
 		shared_ptr<Expression> right = parse_term();
 		left = make_shared<BinaryExpression>(left, op, right);
 	}
-	
+
 	return left;
 }
 

@@ -11,12 +11,6 @@ public:
 	std::string assembly_out = "";
 	void generate_asm();														// Outputs target assembly code
 private:
-	std::vector<std::string> labels;
-	std::vector<std::string> declarations;
-	std::string* current_code_block;
-
-	std::vector<std::string> instruction_stack;
-	std::string pop_stack();
 
 	void generate_label(const std::string& label);
 	void generate_function_decl(const std::shared_ptr<Function>& function);		// Function declarations
@@ -28,5 +22,5 @@ private:
 	std::string current_indentation = "";
 
 	// COUNTERS
-	int jump_label_counter = 0;
+	int jump_label_counter = -1;
 };

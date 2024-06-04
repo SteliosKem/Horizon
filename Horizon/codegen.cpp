@@ -9,19 +9,12 @@ void CodeGenerator::generate_asm() {
 	for (shared_ptr<Statement>& stmt : ast->statements) {								// For every statement in the AST, generate assembly instructions
 		generate_statement(stmt);
 	}
-	for (std::string& i : declarations)
-		assembly_out += i + '\n';
-	for (std::string& i : labels)
-		assembly_out += i;
-	//std::cout << assembly_out;
 }
 
 void CodeGenerator::generate_function_decl(const shared_ptr<Function>& function) {		// Handle Function declarations:
-	declarations.push_back(std::format(".globl {0}", function->name));			// global (name)
-	generate_label(function->name);
-															// (name):
+	assembly_out += std::format(".globl {0}\n", function->name);						// global (name)
+	generate_label(function->name);														// (name):
 	generate_statement(function->statement);											//		(function statements)
-	labels.push_back(pop_stack());
 	// Generates declaration and statements inside the function
 }
 
@@ -134,7 +127,19 @@ void CodeGenerator::generate_expression(const std::shared_ptr<Expression>& expre
 			break;
 		case TOKEN_OR:
 			generate_expression(binary->expression_a, to_where);
-			generate_instruction("setl %al");
+			generate_instruction("cmp $0, " + to_where);
+			jump_label_counter++;
+			generate_instruction("je _clause" + jump_label_counter);
+			generate_instruction("mov $1, " + to_where);
+			generate_instruction("jmp _end" + jump_label_counter);
+
+			generate_label("_clause" + jump_label_counter);
+			generate_expression(binary->expression_b, to_where);
+			generate_instruction("cmp $0, " + to_where);
+			generate_instruction("mov $0, " + to_where);
+			generate_instruction("setne %al");
+
+			generate_label("_end" + jump_label_counter);
 			break;
 		default:
 			break;
@@ -156,19 +161,9 @@ void CodeGenerator::generate_comparison(shared_ptr<BinaryExpression> binary, con
 }
 
 inline void CodeGenerator::generate_instruction(const std::string& instruction) {	// Outputs instruction
-	current_code_block->append("\t" + instruction + "\n");
+	assembly_out.append("\t" + instruction + "\n");
 }
 
 void CodeGenerator::generate_label(const std::string& name) {
-	instruction_stack.push_back(std::string());
-	current_code_block = &instruction_stack[instruction_stack.size() - 1];
- 	current_code_block->append(name + ":\n");
-}
-
-std::string CodeGenerator::pop_stack() {
-	std::string current_block = *current_code_block;
-	instruction_stack.pop_back();
-	current_code_block = &instruction_stack[instruction_stack.size() - 1];
-	return current_block;
-
+ 	assembly_out.append(name + ":\n");
 }

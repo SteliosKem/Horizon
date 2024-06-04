@@ -129,17 +129,32 @@ void CodeGenerator::generate_expression(const std::shared_ptr<Expression>& expre
 			generate_expression(binary->expression_a, to_where);
 			generate_instruction("cmp $0, " + to_where);
 			jump_label_counter++;
-			generate_instruction("je _clause" + jump_label_counter);
+			generate_instruction("je _clause" + std::to_string(jump_label_counter));
 			generate_instruction("mov $1, " + to_where);
-			generate_instruction("jmp _end" + jump_label_counter);
+			generate_instruction("jmp _end" + std::to_string(jump_label_counter));
 
-			generate_label("_clause" + jump_label_counter);
+			generate_label("_clause" + std::to_string(jump_label_counter));
 			generate_expression(binary->expression_b, to_where);
 			generate_instruction("cmp $0, " + to_where);
 			generate_instruction("mov $0, " + to_where);
 			generate_instruction("setne %al");
 
-			generate_label("_end" + jump_label_counter);
+			generate_label("_end" + std::to_string(jump_label_counter));
+			break;
+		case TOKEN_AND:
+			generate_expression(binary->expression_a, to_where);
+			generate_instruction("cmp $0, " + to_where);
+			jump_label_counter++;
+			generate_instruction("jne _clause" + std::to_string(jump_label_counter));
+			generate_instruction("jmp _end" + std::to_string(jump_label_counter));
+
+			generate_label("_clause" + std::to_string(jump_label_counter));
+			generate_expression(binary->expression_b, to_where);
+			generate_instruction("cmp $0, " + to_where);
+			generate_instruction("mov $0, " + to_where);
+			generate_instruction("setne %al");
+
+			generate_label("_end" + std::to_string(jump_label_counter));
 			break;
 		default:
 			break;

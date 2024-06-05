@@ -17,6 +17,8 @@ shared_ptr<Statement> Parser::statement() {
 	if (current_token.type == TOKEN_KEYWORD) {						// Handle statement depending on keyword
 		if (current_token.value == "fn")
 			return function();
+		else if (current_token.value == "let")
+			return variable_declaration();
 		else if (current_token.value == "return")
 			return return_statement();
 	}
@@ -97,6 +99,18 @@ shared_ptr<Return> Parser::return_statement() {
 }
 
 shared_ptr<Expression> Parser::expression() {
+	if (index + 1 < tokens.size() && tokens[index + 1].type == TOKEN_EQUAL) {
+		Token tok = current_token;
+		shared_ptr<VariableAssignment> assignment = make_shared<VariableAssignment>();
+		if (!match(TOKEN_ID)) {
+			make_error("Invalid assignment target");
+		}
+		assignment->variable_name = tok.value;
+		next();
+		assignment->to_assign = expression();
+
+		return assignment;
+	}
 	shared_ptr<Expression> left = parse_and();
 	Token tok = current_token;
 	while (match(TOKEN_OR)) {
@@ -223,6 +237,16 @@ void Parser::print_node(shared_ptr<Statement>& node) {
 		std::cout << "\n";
 		break;
 	}
+	case VARIABLE_DECL: {
+		shared_ptr<VariableDeclaration> decl = dynamic_pointer_cast<VariableDeclaration>(node);
+		std::cout << "Variable" << decl->variable_name << " of type: " << decl->type << " ";
+		if (decl->is_init) {
+			print_expression(decl->optional_to_assign);
+		}
+		
+		std::cout << "\n";
+		break;
+	}
 	default:
 		break;
 	}
@@ -234,9 +258,17 @@ void Parser::print_expression(shared_ptr<Expression>& expression) {
 	case CONSTANT_EXPR:
 		std::cout << dynamic_pointer_cast<Constant>(expression)->value;
 		break;
+	case NAME:
+		std::cout << dynamic_pointer_cast<Name>(expression)->name;
+		break;
 	case UNARY_EXPR:
 		std::cout << dynamic_pointer_cast<UnaryExpression>(expression)->operator_type << " ";
 		print_expression(dynamic_pointer_cast<UnaryExpression>(expression)->expression);
+		break;
+	case VARIABLE_ASSIGN:
+		std::cout << "Assign ";
+		print_expression(dynamic_pointer_cast<VariableAssignment>(expression)->to_assign);
+		std::cout << " to variable " << dynamic_pointer_cast<VariableAssignment>(expression)->variable_name;
 		break;
 	case BINARY_EXPR:
 		std::cout << "(";
@@ -267,6 +299,9 @@ std::shared_ptr<Expression> Parser::parse_factor() {
 			make_error("Expected ')'");
 		}
 	}
+	else if (match(TOKEN_ID)) {
+		expr = make_shared<Name>(tok.value);
+	}
 
 	return expr;
 }
@@ -294,3 +329,44 @@ std::shared_ptr<Compound> Parser::compound_statement() {
 	}
 	return block;
 }
+
+std::shared_ptr<Statement> Parser::variable_declaration() {
+	shared_ptr<VariableDeclaration> variable_decl = make_shared<VariableDeclaration>();
+	bool has_type = false;
+	next();
+	if (!match(TOKEN_ID)) {
+		make_error("Expected variable name");
+	}
+	
+	if (match(TOKEN_ARROW)) {
+		Token tok = current_token;
+		if (!match(TOKEN_KEYWORD)) {
+			make_error("Expected variable type");
+			
+		}
+		else {
+			if (tok.value == "isize")
+				variable_decl->holds_type = TYPE_INTEGER;
+			else {
+				make_error("Expected variable type");
+			}
+			has_type = true;
+		}
+	}
+	if (!match(TOKEN_EQUAL)) {
+		if (!has_type) {
+			make_error("Type must be annotated for an uninitialized variable");
+		}
+	}
+	else {
+		variable_decl->is_init = true;
+		variable_decl->optional_to_assign = expression();
+	}
+
+	if (!match(TOKEN_SEMICOLON)) {
+		make_error("Expected ';'");
+	}
+
+	return variable_decl;
+}
+

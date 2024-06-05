@@ -22,7 +22,10 @@ enum NodeType {
 	CONSTANT_EXPR,
 	BINARY_EXPR,
 	COMPOUND_STM,
-	EXPR_STM
+	EXPR_STM,
+	VARIABLE_DECL,
+	VARIABLE_ASSIGN,
+	NAME
 };
 
 class Node {
@@ -37,6 +40,8 @@ public:
 		type = STATEMENT;
 	}
 };
+
+
 
 class Compound : public Statement {
 public:
@@ -54,6 +59,39 @@ public:
 		type = EXPRESSION;
 	}
 };
+
+class VariableDeclaration : public Statement {
+public:
+	VariableDeclaration() {
+		type = VARIABLE_DECL;
+	}
+	std::string variable_name = "";
+	ValueType holds_type = TYPE_INTEGER;
+	bool is_init = false;
+	std::shared_ptr<Expression> optional_to_assign;
+};
+
+class Name : public Expression {
+public:
+	Name() {
+		type = NAME;
+	}
+	Name(const std::string& _name) : name(_name) {
+		type = NAME;
+	}
+	std::string name = "";
+};
+
+class VariableAssignment : public Expression {
+public:
+	VariableAssignment() {
+		type = VARIABLE_ASSIGN;
+	}
+	std::string variable_name = "";
+	std::shared_ptr<Expression> to_assign;
+};
+
+
 
 class ExpressionStatement : public Statement {
 public:
@@ -130,11 +168,12 @@ private:
 	void print_node(std::shared_ptr<Statement>& node);
 	void print_expression(std::shared_ptr<Expression>& expression);
 
-	std::shared_ptr<Statement> statement();									// Statement handling
-	std::shared_ptr<Function> function();									// Function handling
+	std::shared_ptr<Statement> statement();									// General statement handling
+	std::shared_ptr<Function> function();									// Function declaration handling
 	std::shared_ptr<Return> return_statement();								// Return statement handling
-	std::shared_ptr<Compound> compound_statement();
-	std::shared_ptr<ExpressionStatement> expression_statement();
+	std::shared_ptr<Compound> compound_statement();							// Block {} handling
+	std::shared_ptr<ExpressionStatement> expression_statement();			// Simple expression handling
+	std::shared_ptr<Statement> variable_declaration();						// Variable declaration and instansiation handling
 
 	// EXPRESSIONS
 	std::shared_ptr<Expression> expression();								// Expression handling (Lowest precedence, OR operator)

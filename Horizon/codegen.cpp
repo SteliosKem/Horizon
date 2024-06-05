@@ -14,7 +14,7 @@ void CodeGenerator::generate_asm() {
 void CodeGenerator::generate_function_decl(const shared_ptr<Function>& function) {		// Handle Function declarations:
 	assembly_out += std::format(".globl {0}\n", function->name);						// global (name)
 	generate_label(function->name);														// (name):
-	generate_statement(function->statement);											//		(function statements)
+	generate_compound(function->statement);												//		(function statements)
 	// Generates declaration and statements inside the function
 }
 
@@ -31,6 +31,9 @@ void CodeGenerator::generate_statement(const shared_ptr<Statement>& statement) {
 		break;
 	case RETURN_STM:
 		generate_return(dynamic_pointer_cast<Return>(statement));
+		break;
+	case EXPR_STM:
+		generate_expression(dynamic_pointer_cast<ExpressionStatement>(statement)->expression, "%eax");
 		break;
 	default:
 		break;
@@ -100,6 +103,15 @@ void CodeGenerator::generate_expression(const std::shared_ptr<Expression>& expre
 			generate_instruction("pop %rcx");										// Pop and get the top of the stack to retrieve the result from left expression
 			generate_instruction("cdq");
 			generate_instruction("idivq %rcx");										// Divide the two expressions
+			break;
+		case TOKEN_PERCENT:
+			generate_expression(binary->expression_b, to_where);					// Handle left expression
+			generate_instruction("push " + to_where);								// Push the result to the stack in order to save it	
+			generate_expression(binary->expression_a, to_where);					// Handle right expression
+			generate_instruction("pop %rcx");										// Pop and get the top of the stack to retrieve the result from left expression
+			generate_instruction("cdq");
+			generate_instruction("idivq %rcx");										// Divide the two expressions
+			generate_instruction("mov %rdx, " + to_where);
 			break;
 		case TOKEN_EQUAL_EQUAL:
 			generate_comparison(binary, to_where);
@@ -181,4 +193,10 @@ inline void CodeGenerator::generate_instruction(const std::string& instruction) 
 
 void CodeGenerator::generate_label(const std::string& name) {
  	assembly_out.append(name + ":\n");
+}
+
+void CodeGenerator::generate_compound(std::shared_ptr<Compound> compound) {
+	for (shared_ptr<Statement>& stmt : compound->statements) {
+		generate_statement(stmt);
+	}
 }

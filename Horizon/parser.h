@@ -20,7 +20,9 @@ enum NodeType {
 	RETURN_STM,
 	UNARY_EXPR,
 	CONSTANT_EXPR,
-	BINARY_EXPR
+	BINARY_EXPR,
+	COMPOUND_STM,
+	EXPR_STM
 };
 
 class Node {
@@ -36,11 +38,29 @@ public:
 	}
 };
 
+class Compound : public Statement {
+public:
+	Compound() {
+		type = COMPOUND_STM;
+	}
+	std::vector<std::shared_ptr<Statement>> statements;
+};
+
+
+
 class Expression : public Node {
 public:
 	Expression() {
 		type = EXPRESSION;
 	}
+};
+
+class ExpressionStatement : public Statement {
+public:
+	ExpressionStatement() {
+		type = EXPR_STM;
+	}
+	std::shared_ptr<Expression> expression;
 };
 
 class Constant : public Expression {
@@ -78,7 +98,7 @@ public:
 	}
 	std::string name;
 	ValueType return_type = TYPE_VOID;
-	std::shared_ptr<Statement> statement;
+	std::shared_ptr<Compound> statement;
 };
 
 class Return : public Statement {
@@ -113,7 +133,8 @@ private:
 	std::shared_ptr<Statement> statement();									// Statement handling
 	std::shared_ptr<Function> function();									// Function handling
 	std::shared_ptr<Return> return_statement();								// Return statement handling
-	
+	std::shared_ptr<Compound> compound_statement();
+	std::shared_ptr<ExpressionStatement> expression_statement();
 
 	// EXPRESSIONS
 	std::shared_ptr<Expression> expression();								// Expression handling (Lowest precedence, OR operator)

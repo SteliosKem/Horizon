@@ -15,18 +15,29 @@ shared_ptr<AST> Parser::parse() {
 
 shared_ptr<Statement> Parser::statement() {
 	if (current_token.type == TOKEN_KEYWORD) {						// Handle statement depending on keyword
-		if (current_token.value == "int")
+		if (current_token.value == "fn")
 			return function();
 		else if (current_token.value == "return")
 			return return_statement();
 	}
 	else {															// Else it is an expression statement
-		make_error("Expected statement");
+		return expression_statement();
 	}
 
 	if (panic_mode)
 		synchronize();
 	return nullptr;
+}
+
+shared_ptr<ExpressionStatement> Parser::expression_statement() {
+	shared_ptr<ExpressionStatement> stmt = make_shared<ExpressionStatement>();
+	stmt->expression = expression();
+
+	if (!match(TOKEN_SEMICOLON)) {
+		make_error("Expected ';'");
+	}
+
+	return stmt;
 }
 
 void Parser::make_error(std::string message) {
@@ -37,8 +48,6 @@ void Parser::make_error(std::string message) {
 
 shared_ptr<Function> Parser::function() {
 	shared_ptr<Function> new_function = std::make_shared<Function>();
-	if (current_token.value == "int")								// Get function type
-		new_function->return_type = TYPE_INTEGER;
 
 	next();
 	Token tok = current_token;
@@ -53,13 +62,26 @@ shared_ptr<Function> Parser::function() {
 	if (!match(TOKEN_R_PAR)) {
 		make_error("Expected ')'");
 	}
+	if (match(TOKEN_ARROW)) {
+		tok = current_token;
+		if (!match(TOKEN_KEYWORD)) {
+			make_error("Expected type after '->'");
+		}
+		else if (tok.value == "isize")
+			new_function->return_type = TYPE_INTEGER;
+		else if (tok.value == "void")
+			new_function->return_type = TYPE_VOID;
+		else {
+			make_error("Expected type after '->'");
+		}
+	}
+	else {
+		new_function->return_type = TYPE_VOID;
+	}
 	if (!match(TOKEN_L_BRACE)) {
 		make_error("Expected '{'");
 	}
-	new_function->statement = statement();							// Make function body
-	if (!match(TOKEN_R_BRACE)) {
-		make_error("Expected '}'");
-	}
+	new_function->statement = compound_statement();							// Make function body
 	
 	return new_function;
 }
@@ -177,8 +199,21 @@ void Parser::print_node(shared_ptr<Statement>& node) {
 	case FUNCTION_STM: {
 		shared_ptr<Function> function = dynamic_pointer_cast<Function>(node);
 		std::cout << "function " << function->name << ": " << function->return_type << "(\n";
-		print_node(function->statement);
+		shared_ptr<Statement> stmt = function->statement;
+		print_node(stmt);
 		std::cout << ")\n";
+		break;
+	}
+	case COMPOUND_STM: {
+		shared_ptr<Compound> compound = dynamic_pointer_cast<Compound>(node);
+		for (shared_ptr<Statement>& stmt : compound->statements) {
+			print_node(stmt);
+		}
+		break;
+	}
+	case EXPR_STM: {
+		shared_ptr<ExpressionStatement> expr = dynamic_pointer_cast<ExpressionStatement>(node);
+		print_expression(expr->expression);
 		break;
 	}
 	case RETURN_STM: {
@@ -239,11 +274,23 @@ std::shared_ptr<Expression> Parser::parse_factor() {
 std::shared_ptr<Expression> Parser::parse_term() {
 	shared_ptr<Expression> left = parse_factor();
 	Token tok = current_token;
-	while (match(TOKEN_STAR) || match(TOKEN_SLASH)) {
+	while (match(TOKEN_STAR) || match(TOKEN_SLASH) || match(TOKEN_PERCENT)) {
 		TokenType op = tok.type;
 		shared_ptr<Expression> right = parse_factor();
 		left = make_shared<BinaryExpression>(left, op, right);
 	}
 
 	return left;
+}
+
+std::shared_ptr<Compound> Parser::compound_statement() {
+	shared_ptr<Compound> block = make_shared<Compound>();
+	while (current_token.type != TOKEN_R_BRACE && current_token.type != TOKEN_EOF) {
+		block->statements.push_back(statement());
+		
+	}
+	if (!match(TOKEN_R_BRACE)) {
+		make_error("Expected '}'");
+	}
+	return block;
 }

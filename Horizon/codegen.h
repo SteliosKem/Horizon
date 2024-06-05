@@ -19,6 +19,7 @@ private:
 	void generate_expression(const std::shared_ptr<Expression>& expression, const std::string& to_where);	// Expressions
 	void generate_instruction(const std::string& instruction);					// Instruction
 	void generate_comparison(std::shared_ptr<BinaryExpression> binary, const std::string& to_where);
+	void generate_compound(std::shared_ptr<Compound> compound);
 	std::string current_indentation = "";
 
 	// COUNTERS

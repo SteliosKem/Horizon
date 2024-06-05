@@ -52,9 +52,11 @@ Token Lexer::lex() {
     case ',': return (Token(TOKEN_COMMA, "", line, old_index, index));
     case '.': return (Token(TOKEN_DOT, "", line, old_index, index));
     case '^': return (Token(TOKEN_CAP, "", line, old_index, index));
+    case '%': return (Token(TOKEN_PERCENT, "", line, old_index, index));
+    case '&': return (Token(TOKEN_AMPERSAND, "", line, old_index, index));
     case '~': return (Token(TOKEN_TILDE, "", line, old_index, index));
     case '-': return (Token(
-        match('=') ? TOKEN_MINUS_EQUAL : TOKEN_MINUS, "", line, old_index, index));
+        match('=') ? TOKEN_MINUS_EQUAL : match('>') ? TOKEN_ARROW : TOKEN_MINUS, "", line, old_index, index));
     case '+': return (Token(
         match('=') ? TOKEN_PLUS_EQUAL : TOKEN_PLUS, "", line, old_index, index));
     case '/': return (Token(
@@ -69,10 +71,10 @@ Token Lexer::lex() {
             match('=') ? TOKEN_EQUAL_EQUAL : TOKEN_EQUAL, "", line, old_index, index));
     case '<':
         return (Token(
-            match('=') ? TOKEN_LESS_EQUAL : TOKEN_LESS, "", line, old_index, index));
+            match('=') ? TOKEN_LESS_EQUAL : match('<') ? TOKEN_L_SHIFT : TOKEN_LESS, "", line, old_index, index));
     case '>':
         return (Token(
-            match('=') ? TOKEN_GREATER_EQUAL : TOKEN_GREATER, "", line, old_index, index));
+            match('=') ? TOKEN_GREATER_EQUAL : match('>') ? TOKEN_R_SHIFT : TOKEN_GREATER, "", line, old_index, index));
     case '"':
         return (string());
     case '\0':

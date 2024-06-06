@@ -52,13 +52,14 @@ Token Lexer::lex() {
     case ',': return (Token(TOKEN_COMMA, "", line, old_index, index));
     case '.': return (Token(TOKEN_DOT, "", line, old_index, index));
     case '^': return (Token(TOKEN_CAP, "", line, old_index, index));
-    case '%': return (Token(TOKEN_PERCENT, "", line, old_index, index));
     case '&': return (Token(TOKEN_AMPERSAND, "", line, old_index, index));
     case '~': return (Token(TOKEN_TILDE, "", line, old_index, index));
+    case '%': return (Token(
+        match('=') ? TOKEN_PERCENT_EQUAL : TOKEN_PERCENT, "", line, old_index, index));
     case '-': return (Token(
-        match('=') ? TOKEN_MINUS_EQUAL : match('>') ? TOKEN_ARROW : TOKEN_MINUS, "", line, old_index, index));
+        match('=') ? TOKEN_MINUS_EQUAL : match('>') ? TOKEN_ARROW : match('-') ? TOKEN_MINUS_MINUS : TOKEN_PLUS, "", line, old_index, index));
     case '+': return (Token(
-        match('=') ? TOKEN_PLUS_EQUAL : TOKEN_PLUS, "", line, old_index, index));
+        match('=') ? TOKEN_PLUS_EQUAL : match('+') ? TOKEN_PLUS_PLUS : TOKEN_PLUS, "", line, old_index, index));
     case '/': return (Token(
         match('=') ? TOKEN_SLASH_EQUAL : TOKEN_SLASH, "", line, old_index, index));
     case '*': return (Token(

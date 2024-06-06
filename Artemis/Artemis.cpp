@@ -39,7 +39,7 @@ int main(int argc, char* argv[])
             error_handler.output_errors();
         }
         else {
-            parser.print_ast();
+            //parser.print_ast();
             CodeGenerator code_gen(ast, &error_handler);
             code_gen.generate_asm();
             if (error_handler.has_error()) {

@@ -82,6 +82,17 @@ public:
 	std::string name = "";
 };
 
+enum CompoundAssignment {
+	ADDITION,
+	SUBTRACTION,
+	DIVISION,
+	MULTIPLICATION,
+	MOD,
+
+	INCREMENT,
+	DECREMENT
+};
+
 class VariableAssignment : public Expression {
 public:
 	VariableAssignment() {
@@ -89,6 +100,8 @@ public:
 	}
 	std::string variable_name = "";
 	std::shared_ptr<Expression> to_assign;
+	bool is_compound = false;
+	CompoundAssignment compound_type = ADDITION;
 };
 
 
@@ -183,6 +196,8 @@ private:
 	std::shared_ptr<Expression> parse_arithmetic();							// Highest		|
 	std::shared_ptr<Expression> parse_term();								//			  \	| /
 	std::shared_ptr<Expression> parse_factor();								// Precedence  \_/
+
+	std::shared_ptr<Expression> assignment_helper(bool is_compound, CompoundAssignment compound);
 	
 
 	bool match(TokenType type);								// Checks if current token type matches the desired one

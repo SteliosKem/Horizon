@@ -31,7 +31,7 @@ shared_ptr<Statement> Parser::statement() {
 	return nullptr;
 }
 
-shared_ptr<ExpressionStatement> Parser::expression_statement() {
+shared_ptr<ExpressionStatement> Parser::expression_statement() {	// Statement containing just an expression
 	shared_ptr<ExpressionStatement> stmt = make_shared<ExpressionStatement>();
 	stmt->expression = expression();
 
@@ -58,13 +58,13 @@ shared_ptr<Function> Parser::function() {
 		make_error("Expected function identifier");
 	}
 	new_function->name = tok.value;									// Get function name
-	if (!match(TOKEN_L_PAR)) {
+	if (!match(TOKEN_L_PAR)) {										// Function parameters
 		make_error("Expected '('");
 	}
 	if (!match(TOKEN_R_PAR)) {
 		make_error("Expected ')'");
 	}
-	if (match(TOKEN_ARROW)) {
+	if (match(TOKEN_ARROW)) {										// Handle function type
 		tok = current_token;
 		if (!match(TOKEN_KEYWORD)) {
 			make_error("Expected type after '->'");
@@ -80,10 +80,10 @@ shared_ptr<Function> Parser::function() {
 	else {
 		new_function->return_type = TYPE_VOID;
 	}
-	if (!match(TOKEN_L_BRACE)) {
+	if (!match(TOKEN_L_BRACE)) {									
 		make_error("Expected '{'");
 	}
-	new_function->statement = compound_statement();							// Make function body
+	new_function->statement = compound_statement();					// Make function body
 	
 	return new_function;
 }
@@ -98,20 +98,49 @@ shared_ptr<Return> Parser::return_statement() {
 	return return_stmt;
 }
 
-shared_ptr<Expression> Parser::expression() {
-	if (index + 1 < tokens.size() && tokens[index + 1].type == TOKEN_EQUAL) {
-		Token tok = current_token;
-		shared_ptr<VariableAssignment> assignment = make_shared<VariableAssignment>();
-		if (!match(TOKEN_ID)) {
-			make_error("Invalid assignment target");
-		}
-		assignment->variable_name = tok.value;
-		next();
+std::shared_ptr<Expression> Parser::assignment_helper(bool is_compound, CompoundAssignment compound) {
+	Token tok = current_token;
+	shared_ptr<VariableAssignment> assignment = make_shared<VariableAssignment>();
+	assignment->is_compound = is_compound;
+	assignment->compound_type = compound;
+	if (!match(TOKEN_ID)) {
+		make_error("Invalid assignment target");
+	}
+	assignment->variable_name = tok.value;
+	next();
+	if(compound != INCREMENT && compound != DECREMENT)
 		assignment->to_assign = expression();
 
-		return assignment;
+	return assignment;
+}
+
+shared_ptr<Expression> Parser::expression() {
+	if (index + 1 < tokens.size()) {								// ASSIGNMENT
+		switch (tokens[index + 1].type)
+		{
+		case TOKEN_EQUAL:
+			return assignment_helper(false, ADDITION);
+		case TOKEN_PLUS_EQUAL:
+			return assignment_helper(true, ADDITION);
+		case TOKEN_MINUS_EQUAL:
+			return assignment_helper(true, SUBTRACTION);
+		case TOKEN_SLASH_EQUAL:
+			return assignment_helper(true, DIVISION);
+		case TOKEN_PERCENT_EQUAL:
+			return assignment_helper(true, MOD);
+		case TOKEN_STAR_EQUAL:
+			return assignment_helper(true, MULTIPLICATION);
+		case TOKEN_PLUS_PLUS:
+			return assignment_helper(true, INCREMENT);
+		case TOKEN_MINUS_MINUS:
+			return assignment_helper(true, DECREMENT);
+		default:
+			break;
+		}
+		
 	}
-	shared_ptr<Expression> left = parse_and();
+
+	shared_ptr<Expression> left = parse_and();												// OR Binary Expression
 	Token tok = current_token;
 	while (match(TOKEN_OR)) {
 		TokenType op = tok.type;

@@ -184,12 +184,62 @@ void CodeGenerator::generate_expression(const std::shared_ptr<Expression>& expre
 	}
 	case VARIABLE_ASSIGN: {
 		shared_ptr<VariableAssignment> assignment = dynamic_pointer_cast<VariableAssignment>(expression);
-		generate_expression(assignment->to_assign, "%rax");
 		if (local_variables.find(assignment->variable_name) == local_variables.end()) {
 			make_error("Variable " + assignment->variable_name + " is not declared in this scope");
 		}
 		int stack_offset = local_variables[assignment->variable_name];
-		generate_instruction(std::format("mov %rax, {0}(%rbp)", stack_offset));
+
+		if (!assignment->is_compound) {
+			generate_expression(assignment->to_assign, "%rax");
+			generate_instruction(std::format("mov %rax, {0}(%rbp)", stack_offset));
+		}
+		else {
+			switch (assignment->compound_type) {
+			case INCREMENT:
+				generate_instruction(std::format("add $1, {0}(%rbp)", stack_offset));
+				generate_instruction(std::format("mov {0}(%rbp), %rax", stack_offset));
+				break;
+			case DECREMENT:
+				generate_instruction(std::format("sub $1, {0}(%rbp)", stack_offset));
+				generate_instruction(std::format("mov {0}(%rbp), %rax", stack_offset));
+				break;
+			case ADDITION:
+				generate_expression(assignment->to_assign, "%rax");
+				generate_instruction(std::format("add %rax, {0}(%rbp)", stack_offset));
+				generate_instruction(std::format("mov {0}(%rbp), %rax", stack_offset));
+				break;
+			case SUBTRACTION:
+				generate_expression(assignment->to_assign, "%rax");
+				generate_instruction(std::format("sub %rax, {0}(%rbp)", stack_offset));
+				generate_instruction(std::format("mov {0}(%rbp), %rax", stack_offset));
+				break;
+			case MULTIPLICATION:
+				generate_expression(assignment->to_assign, "%rax");
+				generate_instruction(std::format("imul {0}(%rbp), %rax", stack_offset));
+				generate_instruction(std::format("mov %rax, {0}(%rbp)", stack_offset));
+				break;
+			case DIVISION:
+				generate_expression(assignment->to_assign, "%rcx");
+				generate_instruction(std::format("mov {0}(%rbp), %rax", stack_offset));
+				generate_instruction("cdq");
+				generate_instruction("idivq %rcx");										// Divide the two expressions
+				generate_instruction(std::format("mov %rax, {0}(%rbp)", stack_offset));
+				break;
+			case MOD:
+				generate_expression(assignment->to_assign, "%rcx");
+				generate_instruction(std::format("mov {0}(%rbp), %rax", stack_offset));
+				generate_instruction("cdq");
+				generate_instruction("idivq %rcx");										// Divide the two expressions
+				generate_instruction(std::format("mov %rdx, {0}(%rbp)", stack_offset));
+				generate_instruction(std::format("mov {0}(%rbp), %rax", stack_offset));
+				break;
+			default:
+				break;
+			}
+			
+		}
+
+		
 		break;
 	}
 	case NAME: {

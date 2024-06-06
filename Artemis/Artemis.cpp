@@ -29,6 +29,9 @@ int main(int argc, char* argv[])
         
     }
     else {
+        for (Token& tok : lexer.out) {
+            std::cout << tok.type << " " << tok.value << "\n";
+        }
         Parser parser(lexer.out, &error_handler);
         std::shared_ptr<AST> ast = parser.parse();
         
@@ -37,15 +40,20 @@ int main(int argc, char* argv[])
         }
         else {
             parser.print_ast();
-            CodeGenerator code_gen(ast);
+            CodeGenerator code_gen(ast, &error_handler);
             code_gen.generate_asm();
-            std::cout << code_gen.assembly_out;
+            if (error_handler.has_error()) {
+                error_handler.output_errors();
+            }
+            else {
+                std::cout << code_gen.assembly_out;
 
-            if (argc > 1) {
-                std::ofstream file(std::string(argv[1]) + ".s");
+                if (argc > 1) {
+                    std::ofstream file(std::string(argv[1]) + ".s");
 
-                file << code_gen.assembly_out;
-                file.close();
+                    file << code_gen.assembly_out;
+                    file.close();
+                }
             }
         }
 

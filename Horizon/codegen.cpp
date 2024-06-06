@@ -11,15 +11,21 @@ void CodeGenerator::generate_asm() {
 	}
 }
 
-void CodeGenerator::generate_function_decl(const shared_ptr<Function>& function) {		// Handle Function declarations:
-	assembly_out += std::format(".globl {0}\n", function->name);						// global (name)
-	generate_label(function->name);														// (name):
-	generate_compound(function->statement);												//		(function statements)
+void CodeGenerator::generate_function_decl(const shared_ptr<Function>& function) {		// Handle Function declarations
+	assembly_out += std::format(".globl {0}\n", function->name);						
+	generate_label(function->name);														
+	generate_instruction("push %rbp");													// } Function prologue, save stack frame
+	generate_instruction("mov %rsp, %rbp");												// }
+	generate_compound(function->statement);
+	generate_instruction("mov $0, %rax");												// Return 0 at end, if there is a return statement this is skipped
+	generate_instruction("ret");
 	// Generates declaration and statements inside the function
 }
 
 void CodeGenerator::generate_return(const shared_ptr<Return>& return_stmt) {			// Emits return
 	generate_expression(return_stmt->expression, "%rax");
+	generate_instruction("mov %rbp, %rsp");												// } Function epilogue, revert stack frame
+	generate_instruction("pop %rbp");													// }
 	generate_instruction("ret");
 }
 
@@ -33,7 +39,10 @@ void CodeGenerator::generate_statement(const shared_ptr<Statement>& statement) {
 		generate_return(dynamic_pointer_cast<Return>(statement));
 		break;
 	case EXPR_STM:
-		generate_expression(dynamic_pointer_cast<ExpressionStatement>(statement)->expression, "%eax");
+		generate_expression(dynamic_pointer_cast<ExpressionStatement>(statement)->expression, "%rax");
+		break;
+	case VARIABLE_DECL:
+		generate_var_declaration(dynamic_pointer_cast<VariableDeclaration>(statement));
 		break;
 	default:
 		break;
@@ -173,6 +182,25 @@ void CodeGenerator::generate_expression(const std::shared_ptr<Expression>& expre
 		}
 		break;
 	}
+	case VARIABLE_ASSIGN: {
+		shared_ptr<VariableAssignment> assignment = dynamic_pointer_cast<VariableAssignment>(expression);
+		generate_expression(assignment->to_assign, "%rax");
+		if (local_variables.find(assignment->variable_name) == local_variables.end()) {
+			make_error("Variable " + assignment->variable_name + " is not declared in this scope");
+		}
+		int stack_offset = local_variables[assignment->variable_name];
+		generate_instruction(std::format("mov %rax, {0}(%rbp)", stack_offset));
+		break;
+	}
+	case NAME: {
+		shared_ptr<Name> name = dynamic_pointer_cast<Name>(expression);
+		if (local_variables.find(name->name) == local_variables.end()) {
+			make_error("Variable " + name->name + " is not declared in this scope");
+		}
+		int stack_offset = local_variables[name->name];
+		generate_instruction(std::format("mov {0}(%rbp), %rax", stack_offset));
+		break;
+	}
 	default:
 		break;
 	}
@@ -185,6 +213,27 @@ void CodeGenerator::generate_comparison(shared_ptr<BinaryExpression> binary, con
 	generate_instruction("pop %rcx");										// Pop and get the top of the stack to retrieve the result from left expression
 	generate_instruction("cmp %rax, %rcx");
 	generate_instruction("mov $0, %rax");
+}
+
+void CodeGenerator::generate_var_declaration(std::shared_ptr<VariableDeclaration> decl) {
+	stack_index -= 8;
+	if (local_variables.find(decl->variable_name) != local_variables.end()) {
+		make_error("Already declared variable " + decl->variable_name + " in this scope");
+	}
+	
+	if (!decl->is_init)
+		generate_instruction("push $0");
+	else {
+		generate_expression(decl->optional_to_assign, "%rax");
+		generate_instruction("push %rax");
+	}
+	local_variables[decl->variable_name] = stack_index;
+	
+}
+
+void CodeGenerator::make_error(const std::string& message) {
+	Token default_tok = Token();
+	error_handler->report_error(message, default_tok);
 }
 
 inline void CodeGenerator::generate_instruction(const std::string& instruction) {	// Outputs instruction

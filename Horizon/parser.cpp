@@ -334,9 +334,11 @@ std::shared_ptr<Statement> Parser::variable_declaration() {
 	shared_ptr<VariableDeclaration> variable_decl = make_shared<VariableDeclaration>();
 	bool has_type = false;
 	next();
+	Token tok = current_token;
 	if (!match(TOKEN_ID)) {
 		make_error("Expected variable name");
 	}
+	variable_decl->variable_name = tok.value;
 	
 	if (match(TOKEN_ARROW)) {
 		Token tok = current_token;

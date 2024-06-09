@@ -25,7 +25,8 @@ enum NodeType {
 	EXPR_STM,
 	VARIABLE_DECL,
 	VARIABLE_ASSIGN,
-	NAME
+	NAME,
+	IF_STATEMENT
 };
 
 class Node {
@@ -102,6 +103,17 @@ public:
 	std::shared_ptr<Expression> to_assign;
 	bool is_compound = false;
 	CompoundAssignment compound_type = ADDITION;
+};
+
+class IfStatement : public Statement {
+public:
+	IfStatement() {
+		type = IF_STATEMENT;
+	}
+	std::shared_ptr<Expression> condition;
+	std::shared_ptr<Statement> body;
+	bool has_else = false;
+	std::shared_ptr<Statement> else_body;
 };
 
 
@@ -187,6 +199,8 @@ private:
 	std::shared_ptr<Compound> compound_statement();							// Block {} handling
 	std::shared_ptr<ExpressionStatement> expression_statement();			// Simple expression handling
 	std::shared_ptr<Statement> variable_declaration();						// Variable declaration and instansiation handling
+
+	std::shared_ptr<Statement> if_statement();
 
 	// EXPRESSIONS
 	std::shared_ptr<Expression> expression();								// Expression handling (Lowest precedence, OR operator)

@@ -21,6 +21,8 @@ shared_ptr<Statement> Parser::statement() {
 			return variable_declaration();
 		else if (current_token.value == "return")
 			return return_statement();
+		else if (current_token.value == "if")
+			return if_statement();
 	}
 	else {															// Else it is an expression statement
 		return expression_statement();
@@ -247,6 +249,20 @@ void Parser::print_node(shared_ptr<Statement>& node) {
 		std::cout << ")\n";
 		break;
 	}
+	case IF_STATEMENT: {
+		shared_ptr<IfStatement> if_stmt = dynamic_pointer_cast<IfStatement>(node);
+		std::cout << "if ";
+		print_expression(if_stmt->condition);
+		std::cout << " then (\n";
+		print_node(if_stmt->body);
+		if (if_stmt->has_else) {
+			std::cout << ") else (\n";
+			print_node(if_stmt->else_body);
+		}
+			
+		std::cout << ")\n";
+		break;
+	}
 	case COMPOUND_STM: {
 		shared_ptr<Compound> compound = dynamic_pointer_cast<Compound>(node);
 		for (shared_ptr<Statement>& stmt : compound->statements) {
@@ -401,3 +417,19 @@ std::shared_ptr<Statement> Parser::variable_declaration() {
 	return variable_decl;
 }
 
+std::shared_ptr<Statement> Parser::if_statement() {
+	next();
+	shared_ptr<IfStatement> if_stmt = make_shared<IfStatement>();
+	if_stmt->condition = expression();
+	if (!match(TOKEN_ARROW)) {
+		make_error("Expected '->'");
+	}
+	if_stmt->body = statement();
+	if (current_token.type == TOKEN_KEYWORD && current_token.value == "else") {
+		if_stmt->has_else = true;
+		next();
+		if_stmt->else_body = statement();
+	}
+
+	return if_stmt;
+}

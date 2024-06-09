@@ -24,6 +24,7 @@ private:
 	void generate_compound(std::shared_ptr<Compound> compound);
 	void generate_var_declaration(std::shared_ptr<VariableDeclaration> decl);
 	void make_error(const std::string& message);
+	void make_if_statement(const std::shared_ptr<IfStatement> if_statement);
 
 	std::string current_indentation = "";
 	ErrorHandler* error_handler;

@@ -44,9 +44,30 @@ void CodeGenerator::generate_statement(const shared_ptr<Statement>& statement) {
 	case VARIABLE_DECL:
 		generate_var_declaration(dynamic_pointer_cast<VariableDeclaration>(statement));
 		break;
+	case IF_STATEMENT:
+		make_if_statement(dynamic_pointer_cast<IfStatement>(statement));
+		break;
 	default:
 		break;
 	}
+}
+
+void CodeGenerator::make_if_statement(const std::shared_ptr<IfStatement> if_statement) {
+	int current_jump_label = ++jump_label_counter;
+	generate_expression(if_statement->condition, "%rax");
+	generate_instruction("cmp $0, %rax");
+	
+	if (if_statement->has_else)
+		generate_instruction(std::format("je _else_body{0}", current_jump_label));
+	else
+		generate_instruction(std::format("je _continue{0}", current_jump_label));
+	generate_statement(if_statement->body);
+	generate_instruction(std::format("jmp _continue{0}", current_jump_label));
+	if (if_statement->has_else) {
+		generate_label(std::format("_else_body{0}", current_jump_label));
+		generate_statement(if_statement->else_body);
+	}
+	generate_label(std::format("_continue{0}", current_jump_label));
 }
 
 void CodeGenerator::generate_expression(const std::shared_ptr<Expression>& expression, const std::string& to_where) {		// Handles expressions
@@ -146,37 +167,39 @@ void CodeGenerator::generate_expression(const std::shared_ptr<Expression>& expre
 			generate_comparison(binary, to_where);
 			generate_instruction("setl %al");
 			break;
-		case TOKEN_OR:
+		case TOKEN_OR: {
 			generate_expression(binary->expression_a, to_where);
 			generate_instruction("cmp $0, " + to_where);
-			jump_label_counter++;
-			generate_instruction("je _clause" + std::to_string(jump_label_counter));
+			int current_jump_label = ++jump_label_counter;
+			generate_instruction("je _clause" + std::to_string(current_jump_label));
 			generate_instruction("mov $1, " + to_where);
-			generate_instruction("jmp _end" + std::to_string(jump_label_counter));
+			generate_instruction("jmp _end" + std::to_string(current_jump_label));
 
-			generate_label("_clause" + std::to_string(jump_label_counter));
+			generate_label("_clause" + std::to_string(current_jump_label));
 			generate_expression(binary->expression_b, to_where);
 			generate_instruction("cmp $0, " + to_where);
 			generate_instruction("mov $0, " + to_where);
 			generate_instruction("setne %al");
 
-			generate_label("_end" + std::to_string(jump_label_counter));
+			generate_label("_end" + std::to_string(current_jump_label));
 			break;
-		case TOKEN_AND:
+		}
+		case TOKEN_AND: {
 			generate_expression(binary->expression_a, to_where);
 			generate_instruction("cmp $0, " + to_where);
-			jump_label_counter++;
-			generate_instruction("jne _clause" + std::to_string(jump_label_counter));
-			generate_instruction("jmp _end" + std::to_string(jump_label_counter));
+			int current_jump_label = ++jump_label_counter;
+			generate_instruction("jne _clause" + std::to_string(current_jump_label));
+			generate_instruction("jmp _end" + std::to_string(current_jump_label));
 
-			generate_label("_clause" + std::to_string(jump_label_counter));
+			generate_label("_clause" + std::to_string(current_jump_label));
 			generate_expression(binary->expression_b, to_where);
 			generate_instruction("cmp $0, " + to_where);
 			generate_instruction("mov $0, " + to_where);
 			generate_instruction("setne %al");
 
-			generate_label("_end" + std::to_string(jump_label_counter));
+			generate_label("_end" + std::to_string(current_jump_label));
 			break;
+		}
 		default:
 			break;
 		}

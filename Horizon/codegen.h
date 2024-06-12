@@ -12,7 +12,7 @@ public:
 	std::string assembly_out = "";
 	void generate_asm();														// Outputs target assembly code
 private:
-	std::unordered_map<std::string, int> local_variables;						// Holds variable name and offset from base stack pointer
+	std::vector<std::unordered_map<std::string, int>> local_variables;			// Holds variable name and offset from base stack pointer
 	int stack_index = 0;														// Stores index of stack for local variables
 	void generate_label(const std::string& label);
 	void generate_function_decl(const std::shared_ptr<Function>& function);		// Function declarations

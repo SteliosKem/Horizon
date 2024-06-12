@@ -25,6 +25,8 @@ shared_ptr<Statement> Parser::statement() {
 			return if_statement();
 	}
 	else {															// Else it is an expression statement
+		if (match(TOKEN_L_BRACE))
+			return compound_statement();
 		return expression_statement();
 	}
 

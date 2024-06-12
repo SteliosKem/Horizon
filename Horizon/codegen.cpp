@@ -47,6 +47,9 @@ void CodeGenerator::generate_statement(const shared_ptr<Statement>& statement) {
 	case IF_STATEMENT:
 		make_if_statement(dynamic_pointer_cast<IfStatement>(statement));
 		break;
+	case COMPOUND_STM:
+		generate_compound(dynamic_pointer_cast<Compound>(statement));
+		break;
 	default:
 		break;
 	}
@@ -207,10 +210,10 @@ void CodeGenerator::generate_expression(const std::shared_ptr<Expression>& expre
 	}
 	case VARIABLE_ASSIGN: {
 		shared_ptr<VariableAssignment> assignment = dynamic_pointer_cast<VariableAssignment>(expression);
-		if (local_variables.find(assignment->variable_name) == local_variables.end()) {
+		if (local_variables[local_variables.size()-1].find(assignment->variable_name) == local_variables[local_variables.size() - 1].end()) {
 			make_error("Variable " + assignment->variable_name + " is not declared in this scope");
 		}
-		int stack_offset = local_variables[assignment->variable_name];
+		int stack_offset = local_variables[local_variables.size() - 1][assignment->variable_name];
 
 		if (!assignment->is_compound) {
 			generate_expression(assignment->to_assign, "%rax");
@@ -267,10 +270,10 @@ void CodeGenerator::generate_expression(const std::shared_ptr<Expression>& expre
 	}
 	case NAME: {
 		shared_ptr<Name> name = dynamic_pointer_cast<Name>(expression);
-		if (local_variables.find(name->name) == local_variables.end()) {
+		if (local_variables[local_variables.size() - 1].find(name->name) == local_variables[local_variables.size() - 1].end()) {
 			make_error("Variable " + name->name + " is not declared in this scope");
 		}
-		int stack_offset = local_variables[name->name];
+		int stack_offset = local_variables[local_variables.size() - 1][name->name];
 		generate_instruction(std::format("mov {0}(%rbp), %rax", stack_offset));
 		break;
 	}
@@ -290,7 +293,7 @@ void CodeGenerator::generate_comparison(shared_ptr<BinaryExpression> binary, con
 
 void CodeGenerator::generate_var_declaration(std::shared_ptr<VariableDeclaration> decl) {
 	stack_index -= 8;
-	if (local_variables.find(decl->variable_name) != local_variables.end()) {
+	if (local_variables[local_variables.size() - 1].find(decl->variable_name) != local_variables[local_variables.size() - 1].end()) {
 		make_error("Already declared variable " + decl->variable_name + " in this scope");
 	}
 	
@@ -300,7 +303,7 @@ void CodeGenerator::generate_var_declaration(std::shared_ptr<VariableDeclaration
 		generate_expression(decl->optional_to_assign, "%rax");
 		generate_instruction("push %rax");
 	}
-	local_variables[decl->variable_name] = stack_index;
+	local_variables[local_variables.size() - 1][decl->variable_name] = stack_index;
 	
 }
 
@@ -318,7 +321,15 @@ void CodeGenerator::generate_label(const std::string& name) {
 }
 
 void CodeGenerator::generate_compound(std::shared_ptr<Compound> compound) {
+	if (local_variables.size() > 0) {
+		local_variables.push_back(local_variables[local_variables.size() - 1]);
+	}
+	else
+		local_variables.push_back(std::unordered_map<std::string, int>());
 	for (shared_ptr<Statement>& stmt : compound->statements) {
 		generate_statement(stmt);
 	}
+	//int vars = local_variables[local_variables.size() - 1].size();
+	//generate_instruction(std::format("add {0}, %rsp", 8 * vars));
+	local_variables.pop_back();
 }

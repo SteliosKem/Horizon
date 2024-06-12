@@ -53,10 +53,32 @@ void CodeGenerator::generate_statement(const shared_ptr<Statement>& statement) {
 	case WHILE_STM:
 		generate_while_statement(dynamic_pointer_cast<WhileStatement>(statement));
 		break;
+	case BREAK_STM:
+		loop_flow_statement(dynamic_pointer_cast<BreakStatement>(statement));
+		break;
+	case CONTINUE_STM:
+		loop_flow_statement(dynamic_pointer_cast<ContinueStatement>(statement));
+		break;
 	case EMPTY_STM:
 	default:
 		break;
 	}
+}
+
+void CodeGenerator::loop_flow_statement(const std::shared_ptr<BreakStatement> break_statement) {
+	if (loop_positions.size() > 0) {
+		generate_instruction(std::format("jmp _while_end{0}", loop_positions[loop_positions.size() - 1]));
+	}
+	else
+		make_error("Break statement outside of loop body");
+}
+
+void CodeGenerator::loop_flow_statement(const std::shared_ptr<ContinueStatement> continue_statement) {
+	if (loop_positions.size() > 0) {
+		generate_instruction(std::format("jmp _while_start{0}", loop_positions[loop_positions.size() - 1]));
+	}
+	else
+		make_error("Continue statement outside of loop body");
 }
 
 void CodeGenerator::make_if_statement(const std::shared_ptr<IfStatement> if_statement) {
@@ -297,6 +319,7 @@ void CodeGenerator::generate_comparison(shared_ptr<BinaryExpression> binary, con
 
 void CodeGenerator::generate_while_statement(const std::shared_ptr<WhileStatement> while_statement) {
 	int current_jump = ++jump_label_counter;
+	loop_positions.push_back(current_jump);
 	generate_label(std::format("_while_start{0}", current_jump));
 	generate_expression(while_statement->condition, "%rax");
 	generate_instruction("cmp $0, %rax");
@@ -304,6 +327,7 @@ void CodeGenerator::generate_while_statement(const std::shared_ptr<WhileStatemen
 	generate_statement(while_statement->body);
 	generate_instruction(std::format("jmp _while_start{0}", current_jump));
 	generate_label(std::format("_while_end{0}", current_jump));
+	loop_positions.pop_back();
 }
 
 void CodeGenerator::generate_var_declaration(std::shared_ptr<VariableDeclaration> decl) {

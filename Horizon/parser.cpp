@@ -25,6 +25,14 @@ shared_ptr<Statement> Parser::statement() {
 			return if_statement();
 		else if (current_token.value == "while")
 			return while_statement();
+		else if (current_token.value == "break") {
+			next();
+			return make_shared<BreakStatement>();
+		}
+		else if (current_token.value == "continue") {
+			next();
+			return make_shared<ContinueStatement>();
+		}
 	}
 	else if (match(TOKEN_SEMICOLON))
 		return make_shared<EmptyStatement>();

@@ -26,9 +26,12 @@ private:
 	void make_error(const std::string& message);
 	void make_if_statement(const std::shared_ptr<IfStatement> if_statement);
 	void generate_while_statement(const std::shared_ptr<WhileStatement> while_statement);
-
+	void loop_flow_statement(const std::shared_ptr<BreakStatement> break_statement);
+	void loop_flow_statement(const std::shared_ptr<ContinueStatement> continue_statement);
 	std::string current_indentation = "";
 	ErrorHandler* error_handler;
+
 	// COUNTERS
 	int jump_label_counter = -1;
+	std::vector<int> loop_positions;
 };

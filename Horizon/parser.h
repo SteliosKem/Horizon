@@ -28,7 +28,9 @@ enum NodeType {
 	NAME,
 	IF_STATEMENT,
 	WHILE_STM,
-	EMPTY_STM
+	EMPTY_STM,
+	CONTINUE_STM,
+	BREAK_STM
 };
 
 class Node {
@@ -125,6 +127,20 @@ public:
 	}
 	std::shared_ptr<Expression> condition;
 	std::shared_ptr<Statement> body;
+};
+
+class ContinueStatement : public Statement {
+public:
+	ContinueStatement() {
+		type = CONTINUE_STM;
+	}
+};
+
+class BreakStatement : public Statement {
+public:
+	BreakStatement() {
+		type = BREAK_STM;
+	}
 };
 
 class EmptyStatement : public Statement {

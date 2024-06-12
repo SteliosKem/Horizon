@@ -28,9 +28,11 @@ enum NodeType {
 	NAME,
 	IF_STATEMENT,
 	WHILE_STM,
+	DO_WHILE_STM,
 	EMPTY_STM,
 	CONTINUE_STM,
-	BREAK_STM
+	BREAK_STM,
+	FOR_STM
 };
 
 class Node {
@@ -122,11 +124,22 @@ public:
 
 class WhileStatement : public Statement {
 public:
-	WhileStatement() {
-		type = WHILE_STM;
+	WhileStatement(NodeType node_type = WHILE_STM) {
+		type = node_type;
 	}
 	std::shared_ptr<Expression> condition;
 	std::shared_ptr<Statement> body;
+};
+
+class ForStatement : public Statement {
+public:
+	ForStatement() {
+		type = FOR_STM;
+	}
+	std::shared_ptr<Expression> condition;
+	std::shared_ptr<Expression> post;
+	std::shared_ptr<Statement> body;
+	std::shared_ptr<Statement> initializer;
 };
 
 class ContinueStatement : public Statement {
@@ -233,7 +246,8 @@ private:
 	std::shared_ptr<Statement> variable_declaration();						// Variable declaration and instansiation handling
 
 	std::shared_ptr<Statement> if_statement();
-	std::shared_ptr<Statement> while_statement();
+	std::shared_ptr<Statement> while_statement(NodeType node_type = WHILE_STM);
+	std::shared_ptr<Statement> for_statement();
 
 	// EXPRESSIONS
 	std::shared_ptr<Expression> expression();								// Expression handling (Lowest precedence, OR operator)

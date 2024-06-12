@@ -3,6 +3,7 @@
 #include "parser.h"
 #include <vector>
 #include <unordered_map>
+#include <utility>
 
 class CodeGenerator {
 public:
@@ -26,12 +27,25 @@ private:
 	void make_error(const std::string& message);
 	void make_if_statement(const std::shared_ptr<IfStatement> if_statement);
 	void generate_while_statement(const std::shared_ptr<WhileStatement> while_statement);
+	void generate_for_statement(const std::shared_ptr<ForStatement> for_statement);
 	void loop_flow_statement(const std::shared_ptr<BreakStatement> break_statement);
 	void loop_flow_statement(const std::shared_ptr<ContinueStatement> continue_statement);
+
 	std::string current_indentation = "";
 	ErrorHandler* error_handler;
 
+	void new_scope() {
+		if (local_variables.size() > 0) {
+			local_variables.push_back(local_variables[local_variables.size() - 1]);
+		}
+		else
+			local_variables.push_back(std::unordered_map<std::string, int>());
+	}
+	void pop_scope() {
+		local_variables.pop_back();
+	}
+
 	// COUNTERS
 	int jump_label_counter = -1;
-	std::vector<int> loop_positions;
+	std::vector<std::pair<NodeType, int>> loop_positions;
 };

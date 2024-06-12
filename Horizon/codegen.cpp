@@ -50,6 +50,7 @@ void CodeGenerator::generate_statement(const shared_ptr<Statement>& statement) {
 	case COMPOUND_STM:
 		generate_compound(dynamic_pointer_cast<Compound>(statement));
 		break;
+	case DO_WHILE_STM:
 	case WHILE_STM:
 		generate_while_statement(dynamic_pointer_cast<WhileStatement>(statement));
 		break;
@@ -59,6 +60,9 @@ void CodeGenerator::generate_statement(const shared_ptr<Statement>& statement) {
 	case CONTINUE_STM:
 		loop_flow_statement(dynamic_pointer_cast<ContinueStatement>(statement));
 		break;
+	case FOR_STM:
+		generate_for_statement(dynamic_pointer_cast<ForStatement>(statement));
+		break;
 	case EMPTY_STM:
 	default:
 		break;
@@ -66,16 +70,21 @@ void CodeGenerator::generate_statement(const shared_ptr<Statement>& statement) {
 }
 
 void CodeGenerator::loop_flow_statement(const std::shared_ptr<BreakStatement> break_statement) {
+	std::pair<NodeType, int> loop = loop_positions[loop_positions.size() - 1];
 	if (loop_positions.size() > 0) {
-		generate_instruction(std::format("jmp _while_end{0}", loop_positions[loop_positions.size() - 1]));
+		generate_instruction(std::format("jmp _while_end{0}", std::get<int>(loop)));
 	}
 	else
 		make_error("Break statement outside of loop body");
 }
 
 void CodeGenerator::loop_flow_statement(const std::shared_ptr<ContinueStatement> continue_statement) {
+	std::pair<NodeType, int> loop = loop_positions[loop_positions.size() - 1];
 	if (loop_positions.size() > 0) {
-		generate_instruction(std::format("jmp _while_start{0}", loop_positions[loop_positions.size() - 1]));
+		if(std::get<NodeType>(loop) == WHILE_STM)
+			generate_instruction(std::format("jmp _while_start{0}", std::get<int>(loop)));
+		else
+			generate_instruction(std::format("jmp _for_closing_expr{0}", std::get<int>(loop)));
 	}
 	else
 		make_error("Continue statement outside of loop body");
@@ -318,15 +327,44 @@ void CodeGenerator::generate_comparison(shared_ptr<BinaryExpression> binary, con
 }
 
 void CodeGenerator::generate_while_statement(const std::shared_ptr<WhileStatement> while_statement) {
+	
 	int current_jump = ++jump_label_counter;
-	loop_positions.push_back(current_jump);
+	loop_positions.push_back(std::make_pair(WHILE_STM, current_jump));
+	if (while_statement->type == DO_WHILE_STM) {
+		generate_label(std::format("_while_start{0}", current_jump));
+		generate_statement(while_statement->body);
+		generate_expression(while_statement->condition, "%rax");
+		generate_instruction("cmp $0, %rax");
+		generate_instruction(std::format("jne _while_start{0}", current_jump));
+		generate_label(std::format("_while_end{0}", current_jump));
+	}
+	else {
+		generate_label(std::format("_while_start{0}", current_jump));
+		generate_expression(while_statement->condition, "%rax");
+		generate_instruction("cmp $0, %rax");
+		generate_instruction(std::format("je _while_end{0}", current_jump));
+		generate_statement(while_statement->body);
+		generate_instruction(std::format("jmp _while_start{0}", current_jump));
+		generate_label(std::format("_while_end{0}", current_jump));
+	}
+	loop_positions.pop_back();
+}
+
+void CodeGenerator::generate_for_statement(const std::shared_ptr<ForStatement> for_statement) {
+	int current_jump = ++jump_label_counter;
+	loop_positions.push_back(std::make_pair(FOR_STM, current_jump));
+	new_scope();
+	generate_statement(for_statement->initializer);
 	generate_label(std::format("_while_start{0}", current_jump));
-	generate_expression(while_statement->condition, "%rax");
+	generate_expression(for_statement->condition, "%rax");
 	generate_instruction("cmp $0, %rax");
 	generate_instruction(std::format("je _while_end{0}", current_jump));
-	generate_statement(while_statement->body);
+	generate_statement(for_statement->body);
+	generate_label(std::format("_for_closing_expr{0}", current_jump));
+	generate_expression(for_statement->post, "%rax");
 	generate_instruction(std::format("jmp _while_start{0}", current_jump));
 	generate_label(std::format("_while_end{0}", current_jump));
+	pop_scope();
 	loop_positions.pop_back();
 }
 
@@ -360,15 +398,11 @@ void CodeGenerator::generate_label(const std::string& name) {
 }
 
 void CodeGenerator::generate_compound(std::shared_ptr<Compound> compound) {
-	if (local_variables.size() > 0) {
-		local_variables.push_back(local_variables[local_variables.size() - 1]);
-	}
-	else
-		local_variables.push_back(std::unordered_map<std::string, int>());
+	new_scope();
 	for (shared_ptr<Statement>& stmt : compound->statements) {
 		generate_statement(stmt);
 	}
 	//int vars = local_variables[local_variables.size() - 1].size();
 	//generate_instruction(std::format("add {0}, %rsp", 8 * vars));
-	local_variables.pop_back();
+	pop_scope();
 }

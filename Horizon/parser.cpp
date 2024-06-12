@@ -25,6 +25,10 @@ shared_ptr<Statement> Parser::statement() {
 			return if_statement();
 		else if (current_token.value == "while")
 			return while_statement();
+		else if (current_token.value == "do")
+			return while_statement(DO_WHILE_STM);
+		else if (current_token.value == "for")
+			return for_statement();
 		else if (current_token.value == "break") {
 			next();
 			return make_shared<BreakStatement>();
@@ -58,10 +62,29 @@ shared_ptr<ExpressionStatement> Parser::expression_statement() {	// Statement co
 	return stmt;
 }
 
-shared_ptr<Statement> Parser::while_statement() {
+shared_ptr<Statement> Parser::while_statement(NodeType node_type) {
 	next();
-	shared_ptr<WhileStatement> stmt = make_shared<WhileStatement>();
+	shared_ptr<WhileStatement> stmt = make_shared<WhileStatement>(node_type);
 	stmt->condition = expression();
+
+	if (!match(TOKEN_ARROW)) {
+		make_error("Expected '->'");
+	}
+
+	stmt->body = statement();
+
+	return stmt;
+}
+
+shared_ptr<Statement> Parser::for_statement() {
+	next();
+	shared_ptr<ForStatement> stmt = make_shared<ForStatement>();
+	stmt->initializer = statement();
+	stmt->condition = expression();
+	if (!match(TOKEN_SEMICOLON)) {
+		make_error("Expected ';'");
+	}
+	stmt->post = expression();
 
 	if (!match(TOKEN_ARROW)) {
 		make_error("Expected '->'");

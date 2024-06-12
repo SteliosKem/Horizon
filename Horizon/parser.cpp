@@ -23,7 +23,11 @@ shared_ptr<Statement> Parser::statement() {
 			return return_statement();
 		else if (current_token.value == "if")
 			return if_statement();
+		else if (current_token.value == "while")
+			return while_statement();
 	}
+	else if (match(TOKEN_SEMICOLON))
+		return make_shared<EmptyStatement>();
 	else {															// Else it is an expression statement
 		if (match(TOKEN_L_BRACE))
 			return compound_statement();
@@ -42,6 +46,20 @@ shared_ptr<ExpressionStatement> Parser::expression_statement() {	// Statement co
 	if (!match(TOKEN_SEMICOLON)) {
 		make_error("Expected ';'");
 	}
+
+	return stmt;
+}
+
+shared_ptr<Statement> Parser::while_statement() {
+	next();
+	shared_ptr<WhileStatement> stmt = make_shared<WhileStatement>();
+	stmt->condition = expression();
+
+	if (!match(TOKEN_ARROW)) {
+		make_error("Expected '->'");
+	}
+
+	stmt->body = statement();
 
 	return stmt;
 }

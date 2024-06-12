@@ -50,6 +50,10 @@ void CodeGenerator::generate_statement(const shared_ptr<Statement>& statement) {
 	case COMPOUND_STM:
 		generate_compound(dynamic_pointer_cast<Compound>(statement));
 		break;
+	case WHILE_STM:
+		generate_while_statement(dynamic_pointer_cast<WhileStatement>(statement));
+		break;
+	case EMPTY_STM:
 	default:
 		break;
 	}
@@ -289,6 +293,17 @@ void CodeGenerator::generate_comparison(shared_ptr<BinaryExpression> binary, con
 	generate_instruction("pop %rcx");										// Pop and get the top of the stack to retrieve the result from left expression
 	generate_instruction("cmp %rax, %rcx");
 	generate_instruction("mov $0, %rax");
+}
+
+void CodeGenerator::generate_while_statement(const std::shared_ptr<WhileStatement> while_statement) {
+	int current_jump = ++jump_label_counter;
+	generate_label(std::format("_while_start{0}", current_jump));
+	generate_expression(while_statement->condition, "%rax");
+	generate_instruction("cmp $0, %rax");
+	generate_instruction(std::format("je _while_end{0}", current_jump));
+	generate_statement(while_statement->body);
+	generate_instruction(std::format("jmp _while_start{0}", current_jump));
+	generate_label(std::format("_while_end{0}", current_jump));
 }
 
 void CodeGenerator::generate_var_declaration(std::shared_ptr<VariableDeclaration> decl) {

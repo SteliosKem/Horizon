@@ -26,7 +26,9 @@ enum NodeType {
 	VARIABLE_DECL,
 	VARIABLE_ASSIGN,
 	NAME,
-	IF_STATEMENT
+	IF_STATEMENT,
+	WHILE_STM,
+	EMPTY_STM
 };
 
 class Node {
@@ -116,7 +118,21 @@ public:
 	std::shared_ptr<Statement> else_body;
 };
 
+class WhileStatement : public Statement {
+public:
+	WhileStatement() {
+		type = WHILE_STM;
+	}
+	std::shared_ptr<Expression> condition;
+	std::shared_ptr<Statement> body;
+};
 
+class EmptyStatement : public Statement {
+public:
+	EmptyStatement() {
+		type = EMPTY_STM;
+	}
+};
 
 class ExpressionStatement : public Statement {
 public:
@@ -201,6 +217,7 @@ private:
 	std::shared_ptr<Statement> variable_declaration();						// Variable declaration and instansiation handling
 
 	std::shared_ptr<Statement> if_statement();
+	std::shared_ptr<Statement> while_statement();
 
 	// EXPRESSIONS
 	std::shared_ptr<Expression> expression();								// Expression handling (Lowest precedence, OR operator)

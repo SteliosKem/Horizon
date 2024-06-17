@@ -113,6 +113,23 @@ shared_ptr<Function> Parser::function() {
 	new_function->name = tok.value;									// Get function name
 	if (!match(TOKEN_L_PAR)) {										// Function parameters
 		make_error("Expected '('");
+		
+	}
+	while (current_token.type != TOKEN_R_PAR && current_token.type != TOKEN_EOF) {
+		std::cout << "here";
+		Token tok = current_token;
+		if (!match(TOKEN_ID)) {
+			make_error("Expected identifier");
+		}
+		if (!match(TOKEN_ARROW)) {
+			make_error("Expected '->'");
+		}
+		if (!match(TOKEN_KEYWORD)) {
+
+			make_error("Expected type");
+		}
+		new_function->parameters.push_back(make_shared<Name>(tok.value));
+		match(TOKEN_COMMA);
 	}
 	if (!match(TOKEN_R_PAR)) {
 		make_error("Expected ')'");
@@ -357,6 +374,15 @@ void Parser::print_expression(shared_ptr<Expression>& expression) {
 	case NAME:
 		std::cout << dynamic_pointer_cast<Name>(expression)->name;
 		break;
+	case CALL_EXPR: {
+		shared_ptr<Call> call = dynamic_pointer_cast<Call>(expression);
+		std::cout << "CALL" << call->name;
+		for (shared_ptr<Expression>& i : call->arguments) {
+			std::cout << " ";
+			print_expression(i);
+		}
+		break;
+	}
 	case UNARY_EXPR:
 		std::cout << dynamic_pointer_cast<UnaryExpression>(expression)->operator_type << " ";
 		print_expression(dynamic_pointer_cast<UnaryExpression>(expression)->expression);
@@ -396,7 +422,19 @@ std::shared_ptr<Expression> Parser::parse_factor() {
 		}
 	}
 	else if (match(TOKEN_ID)) {
-		expr = make_shared<Name>(tok.value);
+		if (match(TOKEN_L_PAR)) {
+			shared_ptr<Call> call = make_shared<Call>(tok.value);
+			while (current_token.type != TOKEN_R_PAR && current_token.type != TOKEN_EOF) {
+				call->arguments.push_back(expression());
+				match(TOKEN_COMMA);
+			}
+			if (!match(TOKEN_R_PAR)) {
+				make_error("Expected ')'");
+			}
+			expr = call;
+		}
+		else
+			expr = make_shared<Name>(tok.value);
 	}
 
 	return expr;

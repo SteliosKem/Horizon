@@ -30,6 +30,7 @@ private:
 	void generate_for_statement(const std::shared_ptr<ForStatement> for_statement);
 	void loop_flow_statement(const std::shared_ptr<BreakStatement> break_statement);
 	void loop_flow_statement(const std::shared_ptr<ContinueStatement> continue_statement);
+	void call(const std::shared_ptr<Call> call_expression);
 
 	std::string current_indentation = "";
 	ErrorHandler* error_handler;

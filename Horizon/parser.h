@@ -32,7 +32,8 @@ enum NodeType {
 	EMPTY_STM,
 	CONTINUE_STM,
 	BREAK_STM,
-	FOR_STM
+	FOR_STM,
+	CALL_EXPR
 };
 
 class Node {
@@ -87,6 +88,18 @@ public:
 		type = NAME;
 	}
 	std::string name = "";
+};
+
+class Call : public Expression {
+public:
+	Call() {
+		type = CALL_EXPR;
+	}
+	Call(const std::string& _name) : name(_name) {
+		type = CALL_EXPR;
+	}
+	std::string name = "";
+	std::vector<std::shared_ptr<Expression>> arguments;
 };
 
 enum CompoundAssignment {
@@ -207,6 +220,7 @@ public:
 	std::string name;
 	ValueType return_type = TYPE_VOID;
 	std::shared_ptr<Compound> statement;
+	std::vector<std::shared_ptr<Name>> parameters;
 };
 
 class Return : public Statement {

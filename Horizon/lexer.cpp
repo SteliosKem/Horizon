@@ -57,7 +57,7 @@ Token Lexer::lex() {
     case '%': return (Token(
         match('=') ? TOKEN_PERCENT_EQUAL : TOKEN_PERCENT, "", line, old_index, index));
     case '-': return (Token(
-        match('=') ? TOKEN_MINUS_EQUAL : match('>') ? TOKEN_ARROW : match('-') ? TOKEN_MINUS_MINUS : TOKEN_PLUS, "", line, old_index, index));
+        match('=') ? TOKEN_MINUS_EQUAL : match('>') ? TOKEN_ARROW : match('-') ? TOKEN_MINUS_MINUS : TOKEN_MINUS, "", line, old_index, index));
     case '+': return (Token(
         match('=') ? TOKEN_PLUS_EQUAL : match('+') ? TOKEN_PLUS_PLUS : TOKEN_PLUS, "", line, old_index, index));
     case '/': return (Token(

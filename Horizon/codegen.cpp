@@ -12,6 +12,19 @@ void CodeGenerator::generate_asm() {
 }
 
 void CodeGenerator::generate_function_decl(const shared_ptr<Function>& function) {		// Handle Function declarations
+	new_scope();
+	int param_index = 16;
+	// Parameters:
+	for (shared_ptr<Name>& i : function->parameters) {
+		if (local_variables[local_variables.size() - 1].find(i->name) != local_variables[local_variables.size() - 1].end()) {
+			make_error("Already declared variable " + i->name + " in this scope");
+		}
+
+		local_variables[local_variables.size() - 1][i->name] = param_index;
+		param_index += 8;
+	}
+
+
 	assembly_out += std::format(".globl {0}\n", function->name);						
 	generate_label(function->name);														
 	generate_instruction("push %rbp");													// } Function prologue, save stack frame
@@ -20,6 +33,7 @@ void CodeGenerator::generate_function_decl(const shared_ptr<Function>& function)
 	generate_instruction("mov $0, %rax");												// Return 0 at end, if there is a return statement this is skipped
 	generate_instruction("ret");
 	// Generates declaration and statements inside the function
+	pop_scope();
 }
 
 void CodeGenerator::generate_return(const shared_ptr<Return>& return_stmt) {			// Emits return
@@ -88,6 +102,16 @@ void CodeGenerator::loop_flow_statement(const std::shared_ptr<ContinueStatement>
 	}
 	else
 		make_error("Continue statement outside of loop body");
+}
+
+void CodeGenerator::call(const std::shared_ptr<Call> call_expression) {
+	for (int i = call_expression->arguments.size() - 1; i >= 0; i--) {
+		generate_expression(call_expression->arguments[i], "%rax");
+		generate_instruction("push %rax");
+	}
+	generate_instruction("call " + call_expression->name);
+	int stack_cleanup = 8 * call_expression->arguments.size();
+	generate_instruction(std::format("add ${0}, %rsp", stack_cleanup));
 }
 
 void CodeGenerator::make_if_statement(const std::shared_ptr<IfStatement> if_statement) {
@@ -312,6 +336,9 @@ void CodeGenerator::generate_expression(const std::shared_ptr<Expression>& expre
 		generate_instruction(std::format("mov {0}(%rbp), %rax", stack_offset));
 		break;
 	}
+	case CALL_EXPR:
+		call(dynamic_pointer_cast<Call>(expression));
+		break;
 	default:
 		break;
 	}

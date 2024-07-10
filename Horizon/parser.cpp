@@ -115,28 +115,34 @@ shared_ptr<Function> Parser::function() {
 		make_error("Expected '('");
 		
 	}
+	bool had_error = false;
 	while (current_token.type != TOKEN_R_PAR && current_token.type != TOKEN_EOF) {
-		std::cout << "here";
+		std::cout << "HERE";
 		Token tok = current_token;
 		if (!match(TOKEN_ID)) {
 			make_error("Expected identifier");
+			return new_function;
 		}
 		if (!match(TOKEN_ARROW)) {
 			make_error("Expected '->'");
+			return new_function;
 		}
-		if (!match(TOKEN_KEYWORD)) {
-
-			make_error("Expected type");
+		if (!match(TOKEN_TYPE)) {
+			make_error("Expected type after '->'");
+			std::cout << "Here";
+			return new_function;
 		}
 		new_function->parameters.push_back(make_shared<Name>(tok.value));
 		match(TOKEN_COMMA);
 	}
+	
 	if (!match(TOKEN_R_PAR)) {
 		make_error("Expected ')'");
 	}
+	
 	if (match(TOKEN_ARROW)) {										// Handle function type
 		tok = current_token;
-		if (!match(TOKEN_KEYWORD)) {
+		if (!match(TOKEN_TYPE)) {
 			make_error("Expected type after '->'");
 		}
 		else if (tok.value == "isize")
@@ -161,6 +167,10 @@ shared_ptr<Function> Parser::function() {
 shared_ptr<Return> Parser::return_statement() {
 	next();
 	shared_ptr<Return> return_stmt = make_shared<Return>();
+	if (match(TOKEN_SEMICOLON)) {
+		return_stmt->is_empty = true;
+		return return_stmt;
+	}
 	return_stmt->expression = expression();							// Make expression inside return
 	if (!match(TOKEN_SEMICOLON)) {
 		make_error("Expected ';'");
@@ -288,6 +298,8 @@ void Parser::synchronize() {
 	while (current_token.type != TOKEN_EOF) {
 		
 		if (current_token.type == TOKEN_SEMICOLON)
+			return;
+		else if (current_token.type == TOKEN_R_BRACE)
 			return;
 		else if (current_token.type == TOKEN_KEYWORD && current_token.value == "int")
 			return;
@@ -476,7 +488,7 @@ std::shared_ptr<Statement> Parser::variable_declaration() {
 	
 	if (match(TOKEN_ARROW)) {
 		Token tok = current_token;
-		if (!match(TOKEN_KEYWORD)) {
+		if (!match(TOKEN_TYPE)) {
 			make_error("Expected variable type");
 			
 		}

@@ -4,16 +4,20 @@
 #include <vector>
 #include <unordered_map>
 #include <utility>
+#include <array>
 
 class CodeGenerator {
 public:
 	CodeGenerator(const std::shared_ptr<AST>& ast, ErrorHandler* error_handler) : ast(ast), error_handler(error_handler) {}
 
 	const std::shared_ptr<AST>& ast;
+	std::string headers = "";
+	std::string text = "";
 	std::string assembly_out = "";
 	void generate_asm();														// Outputs target assembly code
 private:
 	std::vector<std::unordered_map<std::string, int>> local_variables;			// Holds variable name and offset from base stack pointer
+	std::vector<std::string> global_variables;
 	int stack_index = 0;														// Stores index of stack for local variables
 	void generate_label(const std::string& label);
 	void generate_function_decl(const std::shared_ptr<Function>& function);		// Function declarations
@@ -21,6 +25,7 @@ private:
 	void generate_statement(const std::shared_ptr<Statement>& statement);		// Statements
 	void generate_expression(const std::shared_ptr<Expression>& expression, const std::string& to_where);	// Expressions
 	void generate_instruction(const std::string& instruction);					// Instruction
+	void generate_header(const std::string& instruction);						// Instruction
 	void generate_comparison(std::shared_ptr<BinaryExpression> binary, const std::string& to_where);
 	void generate_compound(std::shared_ptr<Compound> compound);
 	void generate_var_declaration(std::shared_ptr<VariableDeclaration> decl);
@@ -31,6 +36,10 @@ private:
 	void loop_flow_statement(const std::shared_ptr<BreakStatement> break_statement);
 	void loop_flow_statement(const std::shared_ptr<ContinueStatement> continue_statement);
 	void call(const std::shared_ptr<Call> call_expression);
+
+	int do_operation(std::shared_ptr<Expression> expression);
+	bool op_error = false;
+	std::string simplify(std::shared_ptr<Expression> expression);
 
 	std::string current_indentation = "";
 	ErrorHandler* error_handler;

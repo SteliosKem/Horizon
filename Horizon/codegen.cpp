@@ -9,9 +9,90 @@ void CodeGenerator::generate_asm() {
 	for (shared_ptr<Statement>& stmt : ast->statements) {								// For every statement in the AST, generate assembly instructions
 		generate_statement(stmt);
 	}
+	assembly_out = headers + ".text\n" + text;
+}
+
+int CodeGenerator::do_operation(shared_ptr<Expression> expression) {
+	switch (expression->type)																								// to_where is the register to set a value
+	{
+	case CONSTANT_EXPR:
+		return dynamic_pointer_cast<Constant>(expression)->value;
+	case UNARY_EXPR:
+	{
+		shared_ptr<UnaryExpression> unary = dynamic_pointer_cast<UnaryExpression>(expression);
+		switch (unary->operator_type)
+		{
+		case TOKEN_MINUS:
+			return -do_operation(unary->expression);
+		case TOKEN_BANG:															// In NOT operation 0 becomes true and anything else false
+			return !do_operation(unary->expression);
+		case TOKEN_TILDE:
+			return ~do_operation(unary->expression);
+		default:
+			break;
+		}
+		break;
+	}
+	case BINARY_EXPR:
+	{
+		shared_ptr<BinaryExpression> binary = dynamic_pointer_cast<BinaryExpression>(expression);
+		switch (binary->operator_type)
+		{
+		case TOKEN_PLUS:
+			return do_operation(binary->expression_a) + do_operation(binary->expression_b);
+		case TOKEN_STAR:
+			return do_operation(binary->expression_a) * do_operation(binary->expression_b);
+		case TOKEN_MINUS:
+			return do_operation(binary->expression_a) - do_operation(binary->expression_b);
+		case TOKEN_SLASH:
+			return do_operation(binary->expression_a) / do_operation(binary->expression_b);
+		case TOKEN_PERCENT:
+			return do_operation(binary->expression_a) % do_operation(binary->expression_b);
+		case TOKEN_EQUAL_EQUAL:
+			return do_operation(binary->expression_a) == do_operation(binary->expression_b);
+		case TOKEN_BANG_EQUAL:
+			return do_operation(binary->expression_a) != do_operation(binary->expression_b);
+		case TOKEN_GREATER_EQUAL:
+			return do_operation(binary->expression_a) >= do_operation(binary->expression_b);
+		case TOKEN_LESS_EQUAL:
+			return do_operation(binary->expression_a) <= do_operation(binary->expression_b);
+		case TOKEN_GREATER:
+			return do_operation(binary->expression_a) > do_operation(binary->expression_b);
+		case TOKEN_LESS:
+			return do_operation(binary->expression_a) < do_operation(binary->expression_b);
+		case TOKEN_OR:
+			return do_operation(binary->expression_a) || do_operation(binary->expression_b);
+		case TOKEN_AND:
+			return do_operation(binary->expression_a) && do_operation(binary->expression_b);
+		default:
+			break;
+		}
+		break;
+	}
+	case NAME:
+	default:
+		op_error = true;
+		return 0;
+		break;
+	}
+}
+
+
+std::string CodeGenerator::simplify(shared_ptr<Expression> expression) {
+	int to_ret = do_operation(expression);
+	if (op_error)
+		make_error("Cannot assign non constant");
+	op_error = false;
+	return std::to_string(to_ret);
 }
 
 void CodeGenerator::generate_function_decl(const shared_ptr<Function>& function) {		// Handle Function declarations
+	if (std::find(global_variables.begin(), global_variables.end(), function->name) != global_variables.end()) {
+		make_error("Already declared global variable " + function->name);
+	}
+	else {
+		global_variables.push_back(function->name);
+	}
 	new_scope();
 	int param_index = 16;
 	// Parameters:
@@ -25,19 +106,22 @@ void CodeGenerator::generate_function_decl(const shared_ptr<Function>& function)
 	}
 
 
-	assembly_out += std::format(".globl {0}\n", function->name);						
+	headers += std::format(".globl {0}\n", function->name);						
 	generate_label(function->name);														
 	generate_instruction("push %rbp");													// } Function prologue, save stack frame
 	generate_instruction("mov %rsp, %rbp");												// }
 	generate_compound(function->statement);
 	generate_instruction("mov $0, %rax");												// Return 0 at end, if there is a return statement this is skipped
+	generate_instruction("mov %rbp, %rsp");												// } Function epilogue, revert stack frame
+	generate_instruction("pop %rbp");													// }
 	generate_instruction("ret");
 	// Generates declaration and statements inside the function
 	pop_scope();
 }
 
 void CodeGenerator::generate_return(const shared_ptr<Return>& return_stmt) {			// Emits return
-	generate_expression(return_stmt->expression, "%rax");
+	if(!return_stmt->is_empty)
+		generate_expression(return_stmt->expression, "%rax");
 	generate_instruction("mov %rbp, %rsp");												// } Function epilogue, revert stack frame
 	generate_instruction("pop %rbp");													// }
 	generate_instruction("ret");
@@ -268,55 +352,64 @@ void CodeGenerator::generate_expression(const std::shared_ptr<Expression>& expre
 		break;
 	}
 	case VARIABLE_ASSIGN: {
+		bool is_global = false;
 		shared_ptr<VariableAssignment> assignment = dynamic_pointer_cast<VariableAssignment>(expression);
 		if (local_variables[local_variables.size()-1].find(assignment->variable_name) == local_variables[local_variables.size() - 1].end()) {
-			make_error("Variable " + assignment->variable_name + " is not declared in this scope");
+			if (std::find(global_variables.begin(), global_variables.end(), assignment->variable_name) == global_variables.end()) {
+				make_error("Variable " + assignment->variable_name + " is not declared in this scope");
+			}
+			else
+				is_global = true;
 		}
-		int stack_offset = local_variables[local_variables.size() - 1][assignment->variable_name];
+		int stack_offset;
+		if(!is_global)
+			stack_offset = local_variables[local_variables.size() - 1][assignment->variable_name];
+
+		std::string access = is_global ? assignment->variable_name + "(%rip)" : std::format("{0}(%rbp)", stack_offset);
 
 		if (!assignment->is_compound) {
 			generate_expression(assignment->to_assign, "%rax");
-			generate_instruction(std::format("mov %rax, {0}(%rbp)", stack_offset));
+			generate_instruction("mov %rax, " + access);
 		}
 		else {
 			switch (assignment->compound_type) {
 			case INCREMENT:
-				generate_instruction(std::format("add $1, {0}(%rbp)", stack_offset));
-				generate_instruction(std::format("mov {0}(%rbp), %rax", stack_offset));
+				generate_instruction("add $1, " + access);
+				generate_instruction("mov " + access + ", %rax");
 				break;
 			case DECREMENT:
-				generate_instruction(std::format("sub $1, {0}(%rbp)", stack_offset));
-				generate_instruction(std::format("mov {0}(%rbp), %rax", stack_offset));
+				generate_instruction("sub $1, " + access);
+				generate_instruction("mov " + access + ", % rax");
 				break;
 			case ADDITION:
 				generate_expression(assignment->to_assign, "%rax");
-				generate_instruction(std::format("add %rax, {0}(%rbp)", stack_offset));
-				generate_instruction(std::format("mov {0}(%rbp), %rax", stack_offset));
+				generate_instruction("add %rax, " + access);
+				generate_instruction("mov " + access + ", %rax");
 				break;
 			case SUBTRACTION:
 				generate_expression(assignment->to_assign, "%rax");
-				generate_instruction(std::format("sub %rax, {0}(%rbp)", stack_offset));
-				generate_instruction(std::format("mov {0}(%rbp), %rax", stack_offset));
+				generate_instruction("sub %rax, " + access);
+				generate_instruction("mov " + access + ", %rax");
 				break;
 			case MULTIPLICATION:
 				generate_expression(assignment->to_assign, "%rax");
-				generate_instruction(std::format("imul {0}(%rbp), %rax", stack_offset));
-				generate_instruction(std::format("mov %rax, {0}(%rbp)", stack_offset));
+				generate_instruction("imul " + access + ", %rax");
+				generate_instruction("mov " + access + ", %rax");
 				break;
 			case DIVISION:
 				generate_expression(assignment->to_assign, "%rcx");
-				generate_instruction(std::format("mov {0}(%rbp), %rax", stack_offset));
+				generate_instruction("mov " + access + ", %rax");
 				generate_instruction("cdq");
 				generate_instruction("idivq %rcx");										// Divide the two expressions
-				generate_instruction(std::format("mov %rax, {0}(%rbp)", stack_offset));
+				generate_instruction("mov %rax, " + access);
 				break;
 			case MOD:
 				generate_expression(assignment->to_assign, "%rcx");
-				generate_instruction(std::format("mov {0}(%rbp), %rax", stack_offset));
+				generate_instruction("mov " + access + ", %rax");
 				generate_instruction("cdq");
 				generate_instruction("idivq %rcx");										// Divide the two expressions
-				generate_instruction(std::format("mov %rdx, {0}(%rbp)", stack_offset));
-				generate_instruction(std::format("mov {0}(%rbp), %rax", stack_offset));
+				generate_instruction("mov %rdx, " + access);
+				generate_instruction("mov " + access + ", %rax");
 				break;
 			default:
 				break;
@@ -328,12 +421,23 @@ void CodeGenerator::generate_expression(const std::shared_ptr<Expression>& expre
 		break;
 	}
 	case NAME: {
+		bool is_global = false;
 		shared_ptr<Name> name = dynamic_pointer_cast<Name>(expression);
 		if (local_variables[local_variables.size() - 1].find(name->name) == local_variables[local_variables.size() - 1].end()) {
-			make_error("Variable " + name->name + " is not declared in this scope");
+			if (std::find(global_variables.begin(), global_variables.end(), name->name) == global_variables.end()) {
+				make_error("Variable " + name->name + " is not declared in this scope");
+			}
+			else
+				is_global = true;
 		}
-		int stack_offset = local_variables[local_variables.size() - 1][name->name];
-		generate_instruction(std::format("mov {0}(%rbp), %rax", stack_offset));
+		if (is_global) {
+			generate_instruction("mov " + name->name + "(%rip), %rax");
+		}
+		else {
+			int stack_offset = local_variables[local_variables.size() - 1][name->name];
+			generate_instruction(std::format("mov {0}(%rbp), %rax", stack_offset));
+		}
+		
 		break;
 	}
 	case CALL_EXPR:
@@ -396,19 +500,39 @@ void CodeGenerator::generate_for_statement(const std::shared_ptr<ForStatement> f
 }
 
 void CodeGenerator::generate_var_declaration(std::shared_ptr<VariableDeclaration> decl) {
-	stack_index -= 8;
-	if (local_variables[local_variables.size() - 1].find(decl->variable_name) != local_variables[local_variables.size() - 1].end()) {
-		make_error("Already declared variable " + decl->variable_name + " in this scope");
+	if (local_variables.size() != 0) {
+		stack_index -= 8;
+		if (local_variables[local_variables.size() - 1].find(decl->variable_name) != local_variables[local_variables.size() - 1].end()) {
+			make_error("Already declared variable " + decl->variable_name + " in this scope");
+		}
+
+		if (!decl->is_init)
+			generate_instruction("push $0");
+		else {
+			generate_expression(decl->optional_to_assign, "%rax");
+			generate_instruction("push %rax");
+		}
+		local_variables[local_variables.size() - 1][decl->variable_name] = stack_index;
 	}
-	
-	if (!decl->is_init)
-		generate_instruction("push $0");
 	else {
-		generate_expression(decl->optional_to_assign, "%rax");
-		generate_instruction("push %rax");
+		if (std::find(global_variables.begin(), global_variables.end(), decl->variable_name) != global_variables.end()) {
+			make_error("Already declared global variable " + decl->variable_name);
+		}
+		global_variables.push_back(decl->variable_name);
+		generate_header(".globl " + decl->variable_name);
+		if (decl->is_init) {
+			generate_header(".data");
+			generate_header(".align 4");
+			generate_header(decl->variable_name + ":");
+			generate_header("\t.long " + simplify(decl->optional_to_assign));
+		}
+		else {
+			generate_header(".bss");
+			generate_header(".align 4");
+			generate_header(decl->variable_name + ":");
+			generate_header("\t.zero 4");
+		}
 	}
-	local_variables[local_variables.size() - 1][decl->variable_name] = stack_index;
-	
 }
 
 void CodeGenerator::make_error(const std::string& message) {
@@ -417,11 +541,15 @@ void CodeGenerator::make_error(const std::string& message) {
 }
 
 inline void CodeGenerator::generate_instruction(const std::string& instruction) {	// Outputs instruction
-	assembly_out.append("\t" + instruction + "\n");
+	text.append("\t" + instruction + "\n");
+}
+
+inline void CodeGenerator::generate_header(const std::string& instruction) {		// Outputs instruction
+	headers.append(instruction + "\n");
 }
 
 void CodeGenerator::generate_label(const std::string& name) {
- 	assembly_out.append(name + ":\n");
+ 	text.append(name + ":\n");
 }
 
 void CodeGenerator::generate_compound(std::shared_ptr<Compound> compound) {

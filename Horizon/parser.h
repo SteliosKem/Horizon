@@ -77,6 +77,8 @@ public:
 	ValueType holds_type = TYPE_INTEGER;
 	bool is_init = false;
 	std::shared_ptr<Expression> optional_to_assign;
+	bool is_global = false;
+	int global_value;
 };
 
 class Name : public Expression {
@@ -228,6 +230,7 @@ public:
 	Return() {
 		type = RETURN_STM;
 	}
+	bool is_empty = false;
 	std::shared_ptr<Expression> expression;
 };
 

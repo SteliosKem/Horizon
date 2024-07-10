@@ -23,7 +23,8 @@ public:
 	static bool is_digit(char character);					// Check if a character is a digit
 	static bool is_alpha(char character);					// Check if a character is alphanumeric
 
-	std::array<std::string, 12> keywords{ "return", "isize", "let", "fn", "void", "if", "else", "while", "do", "for", "break", "continue"};
+	std::array<std::string, 12> keywords{ "return", "let", "fn", "void", "if", "else", "while", "do", "for", "break", "continue"};
+	std::array<std::string, 15> types{ "isize", "fsize", "i8", "i16", "i32", "i64", "f32", "f64", "u8", "usize", "u16", "u32", "u64", "string", "void"};
 private:
 	void next();											// Advances the index and updates current_char
 	void back();

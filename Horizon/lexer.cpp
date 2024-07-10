@@ -162,6 +162,8 @@ Token Lexer::identifier() {
 
     if (std::find(keywords.begin(), keywords.end(), string) != keywords.end())              // Check if name is identifier or keyword
         return Token(TOKEN_KEYWORD, string, line, old_index, index);
+    else if (std::find(types.begin(), types.end(), string) != types.end())                  // Check if name is type keyword
+        return Token(TOKEN_TYPE, string, line, old_index, index);
     else if (string == "and")
         return Token(TOKEN_AND, string, line, old_index, index);
     else if (string == "or")
